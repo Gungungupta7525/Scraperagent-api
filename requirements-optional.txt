@@ -1,0 +1,3 @@
+# Optional fallback / scraping providers - not required for the basic version.
+google-genai>=1.0.0
+crawl4ai>=0.4.0
