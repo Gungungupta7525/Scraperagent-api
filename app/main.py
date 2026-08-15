@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .agent import ScrapingAgent, UpstreamError
 from .config import Settings
@@ -53,3 +54,6 @@ def scraping_agent(payload: ScrapingRequest):
         )
     except UpstreamError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")

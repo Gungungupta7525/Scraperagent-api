@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScraperAgent — Candidate Sourcing Chat</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕵️</text></svg>" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">🕵️</div>
+        <div>
+          <h1>ScraperAgent</h1>
+          <p class="tagline">Candidate sourcing chat · paste a job description, get ranked candidates</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span id="api-status" class="api-status" title="API connection">—</span>
+        <button id="settings-btn" class="icon-btn" title="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <main id="chat" class="chat" aria-live="polite"></main>
+
+    <div class="composer-wrap">
+      <div id="suggestions" class="suggestions"></div>
+      <form id="composer" class="composer" autocomplete="off">
+        <textarea
+          id="input"
+          rows="1"
+          placeholder='Paste a job description, e.g. "Senior Python backend engineer, FastAPI, AWS"'
+          aria-label="Job description"
+        ></textarea>
+        <button id="send-btn" type="submit" class="send-btn" aria-label="Send">Send ↵</button>
+      </form>
+      <p class="hint">Scrapes public profiles only (GitHub, LinkedIn X-ray, Indeed, Wellfound…) — never behind logins or paywalls.</p>
+    </div>
+  </div>
+
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-card">
+      <h2>Settings</h2>
+      <label for="settings-url">API Base URL</label>
+      <input id="settings-url" type="url" spellcheck="false" />
+      <label for="settings-key">API Key (X-API-Key, optional)</label>
+      <input id="settings-key" type="password" spellcheck="false" placeholder="leave empty if not required" />
+      <div class="modal-actions">
+        <button id="settings-save" class="btn primary">Save</button>
+        <button id="settings-cancel" class="btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
