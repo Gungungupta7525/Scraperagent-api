@@ -1,8 +1,7 @@
-from typing import List
+"""Source definitions — data only. Logic lives in queries.py and profiles.py."""
 
 
 SOURCE_TEMPLATES = {
-    # developer
     "github": "site:github.com {terms}",
     "gitlab": "site:gitlab.com {terms}",
     "bitbucket": "site:bitbucket.org {terms}",
@@ -12,25 +11,20 @@ SOURCE_TEMPLATES = {
     "codepen": "site:codepen.io {terms}",
     "devto": "site:dev.to {terms}",
     "hashnode": "site:hashnode.com {terms}",
-    # ai / ml / data
     "kaggle": "site:kaggle.com {terms}",
     "scholar": "site:scholar.google.com {terms}",
     "researchgate": "site:researchgate.net {terms}",
     "huggingface": "site:huggingface.co {terms}",
-    # general professional
     "linkedin": "site:linkedin.com/in {terms}",
     "indeed": "site:indeed.com/resumes {terms}",
     "naukri": "site:naukri.com {terms}",
     "wellfound": "site:wellfound.com/profile {terms}",
     "instahyre": "site:instahyre.com {terms}",
     "cutshort": "site:cutshort.io {terms}",
-    # design
     "behance": "site:behance.net {terms}",
     "dribbble": "site:dribbble.com {terms}",
     "artstation": "site:artstation.com {terms}",
-    # research
     "orcid": "site:orcid.org {terms}",
-    # startup
     "producthunt": "site:producthunt.com {terms}",
     "indiehackers": "site:indiehackers.com {terms}",
 }
@@ -63,7 +57,6 @@ SOURCE_LABELS = {
     "indiehackers": "Indie Hackers",
 }
 
-# Categories from the product spec. Sources repeat across categories on purpose.
 CATEGORY_SOURCES = {
     "developer": ["github", "gitlab", "bitbucket", "stackoverflow", "leetcode", "hackerrank", "codepen", "devto", "hashnode"],
     "data": ["kaggle", "github", "scholar", "researchgate", "huggingface"],
@@ -98,23 +91,3 @@ CATEGORY_KEYWORDS = {
 }
 
 MAX_SOURCES_PER_REQUEST = 10
-
-
-def _categories_for(job_description: str) -> List[str]:
-    text = job_description.lower()
-    return [category for category, keywords in CATEGORY_KEYWORDS.items() if any(k in text for k in keywords)]
-
-
-def resolve_sources(job_description: str, requested: List[str] | None = None) -> List[str]:
-    if requested:
-        allowed = [s for s in requested if s in SOURCE_TEMPLATES]
-        return allowed or ["github", "linkedin", "wellfound"]
-    categories = _categories_for(job_description) or ["general"]
-    if "general" not in categories:
-        categories = ["general"] + categories
-    ordered = []
-    for category in categories:
-        for source in CATEGORY_SOURCES[category]:
-            if source not in ordered:
-                ordered.append(source)
-    return ordered[:MAX_SOURCES_PER_REQUEST]

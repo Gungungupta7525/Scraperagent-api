@@ -215,7 +215,7 @@
       const res = await fetch(`${settings.baseUrl}/health`, { signal: AbortSignal.timeout(8000) });
       if (res.ok) {
         const data = await res.json();
-        setStatus("ok", data.llm_configured ? "API online" : "API: no LLM key");
+        setStatus("ok", data.mode === "llm+heuristic" ? "API online (LLM)" : "API online");
       } else {
         setStatus("err", "API error");
       }

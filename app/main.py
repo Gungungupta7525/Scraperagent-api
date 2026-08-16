@@ -77,16 +77,11 @@ async def _ndjson(out: "queue.Queue", thread: threading.Thread):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "llm_configured": settings.llm_configured}
+    return {"status": "ok", "llm_configured": settings.llm_configured, "mode": "llm+heuristic" if settings.llm_configured else "heuristic-only"}
 
 
 @app.post("/scraping-agent", dependencies=[Depends(require_api_key)])
 def scraping_agent(payload: ScrapingRequest, stream: int = 0):
-    if not settings.llm_configured:
-        raise HTTPException(
-            status_code=503,
-            detail="no LLM provider configured: set GROQ_API_KEY and/or GEMINI_API_KEY",
-        )
     if stream:
         out: "queue.Queue" = queue.Queue()
         thread = threading.Thread(
