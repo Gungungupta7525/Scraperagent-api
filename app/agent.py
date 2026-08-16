@@ -14,6 +14,28 @@ if TYPE_CHECKING:
     from groq.types.chat import ChatCompletionMessageParam
 
 
+_PROFILE_SOURCES = ("github", "linkedin", "wellfound", "stackoverflow", "kaggle", "behance", "dribbble")
+
+# Strict patterns: a valid candidate URL is a single public profile, not a job
+# page, search listing, org/company page, or anything else.
+_PROFILE_URL_PATTERNS = [
+    re.compile(r"^https?://(?:www\.)?github\.com/[^/]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.|in\.)?linkedin\.com/in/[\w.-]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?wellfound\.com/(?:profile|u)/[\w.-]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?stackoverflow\.com/users/\d+/[\w.-]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?kaggle\.com/[\w.-]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?behance\.net/[\w.-]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?dribbble\.com/[\w.-]+/?$", re.I),
+]
+
+
+def profile_source(url: str) -> str | None:
+    for pattern, source in zip(_PROFILE_URL_PATTERNS, _PROFILE_SOURCES):
+        if pattern.match(url.strip()):
+            return source
+    return None
+
+
 class UpstreamError(Exception):
     """Raised when no LLM provider could be reached at all (upstream failure -> 503)."""
 
@@ -128,6 +150,7 @@ class ScrapingAgent:
             heuristic = self._heuristic_candidates(job_description, last_results)
             if heuristic:
                 return heuristic, None
+            return [], None
         return None, last_error
 
     def _generate_queries(self, adapter: LLMAdapter, job_description: str, sources: list, deadline: float):
@@ -153,8 +176,12 @@ class ScrapingAgent:
             if not isinstance(item, dict) or not item.get("query"):
                 continue
             source = item.get("source") or "github"
-            if source in sources:
-                query_list.append({"source": source, "query": str(item["query"]).strip()})
+            if source not in sources:
+                continue
+            terms = re.sub(r"(?i)\bsite:\S+", "", str(item["query"])).strip()
+            if not terms:
+                continue
+            query_list.append({"source": source, "query": SOURCE_TEMPLATES[source].format(terms=terms)})
         return {"queries": query_list[:12]}
 
     def _default_queries(self, job_description: str, sources: list):
@@ -216,7 +243,7 @@ class ScrapingAgent:
         raw = data.get("candidates") or []
         if not isinstance(raw, list):
             return None
-        return [self._parse_candidate(item) for item in raw]
+        return [c for c in (self._parse_candidate(item) for item in raw) if c]
 
     @staticmethod
     def _format_evidence(results_by_source: dict, scraped: dict) -> str:
@@ -245,12 +272,15 @@ class ScrapingAgent:
         if isinstance(skills, str):
             skills = [s.strip() for s in skills.split(",") if s.strip()]
         url = (raw.get("url") or "").strip()
+        source = profile_source(url)
+        if not source:
+            return None
         return {
             "name": raw.get("name") or None,
             "role": raw.get("role") or None,
             "headline": raw.get("headline") or None,
-            "source": (raw.get("source") or None),
-            "url": url or None,
+            "source": source,
+            "url": url,
             "location": raw.get("location") or None,
             "skills": [str(s) for s in skills][:20],
             "experience": raw.get("experience") or None,
@@ -260,34 +290,16 @@ class ScrapingAgent:
 
     @staticmethod
     def _parse_candidate_list(content: str) -> list:
-        return [ScrapingAgent._parse_candidate(item) for item in parse_candidates(content)]
+        return [c for c in (ScrapingAgent._parse_candidate(item) for item in parse_candidates(content)) if c]
 
     # -- rule-based safety net: guarantees candidates whenever searches found
     # -- public profile URLs, even if the LLM returned an empty list.
-
-    _PROFILE_PATTERNS = {
-        "github": ("github.com/",),
-        "linkedin": ("linkedin.com/in/",),
-        "wellfound": ("wellfound.com/profile/",),
-        "stackoverflow": ("stackoverflow.com/users/",),
-        "kaggle": ("kaggle.com/",),
-        "behance": ("behance.net/",),
-        "dribbble": ("dribbble.com/",),
-    }
 
     _STOPWORDS = {
         "a", "an", "the", "and", "or", "with", "for", "in", "on", "of", "to", "at", "by", "from",
         "is", "are", "be", "as", "you", "your", "will", "we", "our", "this", "that", "what", "who",
         "using", "used", "based", "someone", "somebody",
     }
-
-    @classmethod
-    def _profile_source(cls, url: str) -> str | None:
-        url_l = url.lower()
-        for source, patterns in cls._PROFILE_PATTERNS.items():
-            if any(p in url_l for p in patterns):
-                return source
-        return None
 
     @classmethod
     def _name_from_url(cls, url: str) -> str | None:
@@ -325,18 +337,18 @@ class ScrapingAgent:
         for source, results in results_by_source.items():
             for row in results or []:
                 url = (row.get("url") or "").strip()
-                url_l = url.lower()
-                if url in seen or "github.com/orgs/" in url_l or "wellfound.com/company/" in url_l:
+                if url in seen:
                     continue
-                src = self._profile_source(url)
+                src = profile_source(url)
                 if not src:
                     continue
                 seen.add(url)
                 title = (row.get("title") or "").strip()
                 snippet = (row.get("snippet") or "").strip()
+                name = self._name_from_url(url) or re.sub(r"\s*[|]\s*.*$", "", title).strip() or None
                 candidates.append(
                     {
-                        "name": self._name_from_url(url),
+                        "name": name,
                         "role": None,
                         "headline": title or None,
                         "source": src,
