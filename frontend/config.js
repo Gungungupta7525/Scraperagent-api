@@ -5,5 +5,5 @@ const CONFIG = {
   // Optional shared key. If the backend runs with API_KEY set, clients must
   // send it via the X-API-Key header. Leave empty when not used.
   API_KEY: "",
-  MAX_CANDIDATES: 10,
+  MAX_CANDIDATES: 100,
 };

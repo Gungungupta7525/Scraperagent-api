@@ -30,7 +30,15 @@ Request:
 
 Response (200): `candidates[]` ranked with `relevance_score`, plus `sources_status` showing which sources succeeded/failed.
 
-Default public sources: GitHub, GitLab, Bitbucket, LinkedIn X-ray (`/in` public snippets), Wellfound — plus role-adaptive Stack Overflow / Kaggle / Behance / Dribbble.
+Default public sources are chosen by role category from the job description:
+- **Developer:** GitHub, GitLab, Bitbucket, Stack Overflow, LeetCode, HackerRank, CodePen, Dev.to, Hashnode
+- **AI/ML/Data:** Kaggle, GitHub, Google Scholar, ResearchGate, Hugging Face
+- **General:** LinkedIn X-ray (`/in` public snippets), Indeed, Naukri, Wellfound, Instahyre, Cutshort
+- **Design:** Behance, Dribbble, ArtStation, CodePen
+- **Research:** Google Scholar, ResearchGate, ORCID
+- **Startup:** Wellfound, Product Hunt, Indie Hackers, GitHub, LinkedIn
+
+Searches run in parallel across the selected sources; the LLM's ranked candidates are merged with rule-based extraction so requests routinely return up to 100 candidates.
 
 Errors: **503** upstream failure (no LLM/provider reachable), **200 empty list** when nothing found, optional **401** when `API_KEY` is set on the backend.
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, List
 
 from .config import Settings
@@ -14,7 +15,14 @@ if TYPE_CHECKING:
     from groq.types.chat import ChatCompletionMessageParam
 
 
-_PROFILE_SOURCES = ("github", "gitlab", "bitbucket", "linkedin", "wellfound", "stackoverflow", "kaggle", "behance", "dribbble")
+_PROFILE_SOURCES = (
+    "github", "gitlab", "bitbucket", "stackoverflow", "leetcode", "hackerrank", "codepen", "devto", "hashnode",
+    "kaggle", "scholar", "researchgate", "huggingface",
+    "linkedin", "wellfound", "cutshort",
+    "behance", "dribbble", "artstation",
+    "orcid",
+    "producthunt", "indiehackers",
+)
 
 # Strict patterns: a valid candidate URL is a single public profile, not a job
 # page, search listing, org/company page, or anything else.
@@ -22,18 +30,81 @@ _PROFILE_URL_PATTERNS = [
     re.compile(r"^https?://(?:www\.)?github\.com/[^/]+/?$", re.I),
     re.compile(r"^https?://(?:www\.)?gitlab\.com/[^/]+/?$", re.I),
     re.compile(r"^https?://(?:www\.)?bitbucket\.org/[^/]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?stackoverflow\.com/users/\d+/[\w.-]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?leetcode\.com/(?:u/)?[^/]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?hackerrank\.com/(?:profile/)?[^/]+/?$", re.I),
+    re.compile(r"^https?://codepen\.io/[^/]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?dev\.to/[^/]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?hashnode\.com/@[^/]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?kaggle\.com/[\w-]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?scholar\.google\.\w[\w.]*/citations\?[^#]*\buser=[^&#]+", re.I),
+    re.compile(r"^https?://(?:www\.)?researchgate\.net/profile/[^/]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?huggingface\.co/[^/]+/?$", re.I),
     re.compile(r"^https?://(?:www\.|in\.)?linkedin\.com/in/[\w.-]+/?$", re.I),
     re.compile(r"^https?://(?:www\.)?wellfound\.com/(?:profile|u)/[\w.-]+/?$", re.I),
-    re.compile(r"^https?://(?:www\.)?stackoverflow\.com/users/\d+/[\w.-]+/?$", re.I),
-    re.compile(r"^https?://(?:www\.)?kaggle\.com/[\w.-]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?cutshort\.io/@[^/]+/?$", re.I),
     re.compile(r"^https?://(?:www\.)?behance\.net/[\w.-]+/?$", re.I),
     re.compile(r"^https?://(?:www\.)?dribbble\.com/[\w.-]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?artstation\.com/(?:artists/)?[\w.-]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?orcid\.org/\d{4}-\d{4}-\d{4}-\d{3}[\dX]/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?producthunt\.com/@[\w-]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?indiehackers\.com/[\w-]+/?$", re.I),
 ]
 
 
+# Reserved first path segments per source: these are platform pages, not profiles.
+_RESERVED_PATHS = {
+    "github": ("about", "features", "pricing", "topics", "marketplace", "explore", "sponsors", "settings",
+               "notifications", "login", "signup", "signin", "jobs", "events", "collections", "trending",
+               "contact", "security", "enterprise", "team", "new", "organizations", "apps", "pulls", "issues"),
+    "gitlab": ("about", "explore", "help", "users", "sign_in", "sign_up", "projects", "directory", "-"),
+    "bitbucket": ("account", "features", "about", "product", "plans", "pricing", "blog", "help", "api",
+                  "enterprise", "integrations", "addon"),
+    "leetcode": ("problems", "contest", "contests", "discussion", "study-plan", "interview", "explore",
+                 "play", "company", "mock", "api", "assessment", "jobs", "subscribe"),
+    "hackerrank": ("domains", "challenges", "contests", "dashboard", "skills", "hiring", "about", "contact",
+                   "certificates", "tests", "work", "login", "signup", "jobs"),
+    "codepen": ("pens", "projects", "collection", "collections", "topics", "search", "jobs", "login", "signup",
+                "about", "settings", "videos", "podcasts", "license", "privacy", "terms"),
+    "devto": ("search", "api", "dashboard", "notifications", "tags", "top", "latest", "signup", "login",
+              "about", "contact", "new", "settings", "admin", "privacy", "terms", "pod", "video"),
+    "hashnode": ("team", "about", "pages", "new", "dashboard", "settings", "login", "signup", "search", "tags"),
+    "kaggle": ("competitions", "datasets", "models", "docs", "learn", "search", "account", "settings",
+               "about", "contact", "me", "code", "discussions", "notebooks"),
+    "huggingface": ("models", "datasets", "spaces", "docs", "tasks", "chat", "login", "signup", "settings",
+                    "about", "pricing", "enterprise", "organizations", "blog", "search", "papers"),
+    "researchgate": ("search", "publication", "publications", "questions", "topics", "members", "about",
+                     "login", "signup", "jobs", "network", "labs", "meetings"),
+    "scholar": (),
+    "linkedin": (),
+    "wellfound": ("companies", "jobs", "talent", "sessions", "blog", "about", "login", "signup", "products",
+                  "articles", "events", "guides", "newsletter"),
+    "cutshort": (),
+    "behance": ("search", "galleries", "moodboards", "joblist", "featured", "adobe", "about", "login",
+                "signup", "terms", "privacy", "api", "collections"),
+    "dribbble": ("shots", "search", "collections", "tags", "jobs", "stories", "meetups", "goals", "about",
+                 "login", "signup", "hire", "talent", "terms", "privacy"),
+    "artstation": ("search", "jobs", "about", "login", "signup", "marketplace", "contests", "blog", "careers",
+                   "community", "learn", "news", "terms", "privacy"),
+    "orcid": (),
+    "producthunt": ("categories", "topics", "posts", "products", "discussions", "search", "about", "login",
+                    "signup", "newsletter", "faq", "pricing", "tools", "collections", "makers"),
+    "indiehackers": ("browse", "learn", "forum", "interviews", "about", "signup", "login", "jobs", "products",
+                     "podcast", "newsletter", "start", "top"),
+    "stackoverflow": (),
+}
+
+
 def profile_source(url: str) -> str | None:
+    stripped = url.strip()
     for pattern, source in zip(_PROFILE_URL_PATTERNS, _PROFILE_SOURCES):
-        if pattern.match(url.strip()):
+        if pattern.match(stripped):
+            path = stripped.split("://", 1)[-1]
+            path = path.split("/", 1)[1] if "/" in path else ""
+            path = path.split("?", 1)[0].split("#", 1)[0]
+            first = path.split("/", 1)[0].lower()
+            if first in _RESERVED_PATHS.get(source, ()):
+                return None
             return source
     return None
 
@@ -143,14 +214,14 @@ class ScrapingAgent:
                 emit(f"Planning searches with {adapter.name}…")
                 queries = self._generate_queries(adapter, job_description, sources, deadline)
                 query_list = queries.get("queries", []) if isinstance(queries, dict) else queries
-                if not query_list:
-                    query_list = self._default_queries(job_description, sources)
+                query_list = self._complete_queries(query_list, sources, job_description)
                 results_by_source = self._run_searches(query_list, deadline, emit)
                 last_results = results_by_source
                 scraped = self._run_scrapes(results_by_source, deadline, emit)
                 emit("Generating ranked candidate profiles…")
                 candidates = self._extract_candidates(adapter, job_description, results_by_source, scraped, deadline)
                 llm_ok = True
+                candidates = self._merge_candidates(candidates, self._heuristic_candidates(job_description, results_by_source))
                 if candidates:
                     return candidates, None
                 last_error = f"{adapter.name}: no candidates parsed"
@@ -159,20 +230,31 @@ class ScrapingAgent:
         if llm_ok:
             emit("Ranking best matches…")
             heuristic = self._heuristic_candidates(job_description, last_results)
-            if heuristic:
-                return heuristic, None
-            return [], None
+            return heuristic, None
         return None, last_error
+
+    @staticmethod
+    def _merge_candidates(llm_candidates, heuristic_candidates):
+        merged = list(llm_candidates or [])
+        seen = {c["url"] for c in merged if c.get("url")}
+        for candidate in heuristic_candidates or []:
+            url = candidate.get("url")
+            if url and url not in seen:
+                seen.add(url)
+                merged.append(candidate)
+        return merged
 
     def _generate_queries(self, adapter: LLMAdapter, job_description: str, sources: list, deadline: float):
         allowed = ", ".join(sources)
         system = (
             "You plan web searches to source candidate profiles for a job description. "
-            f"Allowed sources: {allowed}. Build 3-8 targeted queries across the relevant sources, using the "
+            f"Allowed sources: {allowed}. Build targeted queries across MANY of these sources, using the "
             "site: operator per source (site:github.com, site:gitlab.com, site:bitbucket.org, "
-            "site:linkedin.com/in, site:indeed.com/resumes, "
-            "site:wellfound.com/profile, site:stackoverflow.com/users, site:kaggle.com, site:behance.net, "
-            "site:dribbble.com). Combine role, seniority, and key skills.\n"
+            "site:stackoverflow.com/users, site:leetcode.com, site:hackerrank.com, site:codepen.io, site:dev.to, "
+            "site:hashnode.com, site:kaggle.com, site:scholar.google.com, site:researchgate.net, "
+            "site:huggingface.co, site:linkedin.com/in, site:wellfound.com/profile, site:behance.net, "
+            "site:dribbble.com, site:artstation.com, site:orcid.org, site:producthunt.com, "
+            "site:indiehackers.com). Combine role, seniority, and key skills.\n"
             'Respond with ONLY JSON: {"queries":[{"source":"github","query":"site:github.com senior python backend"}]}'
         )
         messages: List[ChatCompletionMessageParam] = [
@@ -196,22 +278,52 @@ class ScrapingAgent:
             query_list.append({"source": source, "query": SOURCE_TEMPLATES[source].format(terms=terms)})
         return {"queries": query_list[:12]}
 
+    def _complete_queries(self, query_list: list, sources: list, job_description: str) -> list:
+        """Guarantee every selected source is searched at least once (volume): keep the
+        LLM's targeted queries and add compact default queries for any uncovered source."""
+        query_list = list(query_list or [])
+        covered = {item["source"] for item in query_list}
+        terms = self._query_terms(job_description)
+        for source in sources:
+            if source not in covered:
+                covered.add(source)
+                query_list.append({"source": source, "query": SOURCE_TEMPLATES[source].format(terms=terms)})
+        return query_list
+
+    def _query_terms(self, job_description: str) -> str:
+        terms = self._keywords(job_description)
+        if terms:
+            return " ".join(terms[:10])
+        return re.sub(r"\s+", " ", job_description).strip()[:150]
+
     def _default_queries(self, job_description: str, sources: list):
-        text = re.sub(r"\s+", " ", job_description).strip()
-        terms = text[:150]
+        terms = self._query_terms(job_description)
         return [{"source": s, "query": SOURCE_TEMPLATES[s].format(terms=terms)} for s in sources]
 
     def _run_searches(self, queries: list, deadline: float, emit=None):
         emit = emit or (lambda message: None)
         out = {}
+        seen = set()
+        todo = []
         for item in queries:
             if self._remaining(deadline) <= 0:
                 break
             source = item["source"]
-            if source in out:
+            if source in seen:
                 continue
-            emit(f"Looking for candidates on {source}…")
-            out[source] = self.search.search_source(item["query"], source, self.settings.max_results_per_source)
+            seen.add(source)
+            todo.append((source, item["query"]))
+        if not todo:
+            return out
+        emit(f"Looking for candidates across {len(todo)} sources…")
+
+        def _search(pair):
+            source, query = pair
+            return source, self.search.search_source(query, source, self.settings.max_results_per_source)
+
+        with ThreadPoolExecutor(max_workers=min(10, len(todo))) as executor:
+            for source, results in executor.map(_search, todo):
+                out[source] = results
         return out
 
     def _run_scrapes(self, results_by_source: dict, deadline: float, emit=None):
@@ -238,8 +350,11 @@ class ScrapingAgent:
         system = (
             "You are a recruiting agent. Extract candidate profiles from the search results and scraped text below "
             "and rank them best-first for the job description.\n"
-            "- Treat every search result whose URL is a public profile (github.com/..., linkedin.com/in/..., "
-            "wellfound.com/profile/..., stackoverflow.com/users/..., kaggle.com/..., behance.net/..., dribbble.com/...) as a candidate.\n"
+            "- Treat every search result whose URL is a public profile (github.com/..., gitlab.com/..., "
+            "bitbucket.org/..., leetcode.com/..., hackerrank.com/..., codepen.io/..., dev.to/..., hashnode.com/@..., "
+            "kaggle.com/..., scholar.google.com/citations..., researchgate.net/profile/..., huggingface.co/..., "
+            "linkedin.com/in/..., wellfound.com/profile/..., cutshort.io/@..., behance.net/..., dribbble.com/..., "
+            "artstation.com/..., orcid.org/..., producthunt.com/@..., indiehackers.com/...) as a candidate.\n"
             "- Derive name, role and skills from the title, URL slug and snippet. Do not invent people who do not appear in the evidence.\n"
             "- If any public profile URL exists in the evidence, you MUST return it as a candidate. An empty list is only "
             "acceptable when the evidence contains no public profile URLs at all.\n"
@@ -320,18 +435,30 @@ class ScrapingAgent:
 
     @classmethod
     def _name_from_url(cls, url: str) -> str | None:
-        match = re.search(r"(?:github|gitlab|bitbucket|wellfound|linkedin|stackoverflow|kaggle|behance|dribbble)\.com/", url.lower())
+        if "scholar.google.com/" in url.lower():
+            return None
+        match = re.search(
+            r"(?:github|gitlab|bitbucket|stackoverflow|leetcode|hackerrank|codepen|dev|hashnode|kaggle|researchgate|"
+            r"huggingface|linkedin|wellfound|cutshort|behance|dribbble|artstation|orcid|producthunt|indiehackers)"
+            r"\.(?:com|io|to|co|org|net)/",
+            url.lower(),
+        )
         if not match:
             return None
         slug = url[match.end():].split("?", 1)[0].rstrip("/")
         parts = [p for p in slug.split("/") if p]
-        if parts and parts[0] in ("in", "profile", "users"):
+        if parts and parts[0] in ("in", "profile", "users", "artists"):
             parts = parts[1:]
         if parts and parts[0].isdigit() and len(parts) > 1:
             parts = parts[1:]
         if not parts:
             return None
-        return re.sub(r"[-_+]+", " ", parts[0]).title()
+        name_part = parts[0].lstrip("@")
+        if not re.search(r"[a-z0-9]", name_part):
+            return None
+        if re.fullmatch(r"[0-9X][0-9X-]*", name_part):
+            return None
+        return re.sub(r"[-_+]+", " ", name_part).title()
 
     @classmethod
     def _keywords(cls, text: str) -> list:

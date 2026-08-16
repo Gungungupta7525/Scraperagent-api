@@ -9,7 +9,7 @@ class ScrapingRequest(BaseModel):
         default=None,
         description="Optional allow-list of sources (github, linkedin, indeed, wellfound, stackoverflow, kaggle, behance, dribbble). Defaults to role-adaptive set.",
     )
-    max_candidates: int = Field(default=10, ge=1, le=50, description="Maximum number of ranked candidates to return.")
+    max_candidates: int = Field(default=100, ge=1, le=100, description="Maximum number of ranked candidates to return.")
 
 
 class CandidateProfile(BaseModel):

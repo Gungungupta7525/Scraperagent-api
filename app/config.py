@@ -21,12 +21,12 @@ class Settings:
         self.cors_origins = [o.strip() for o in env.get("CORS_ORIGINS", "*").split(",") if o.strip()]
         self.api_key = (env.get("API_KEY") or "").strip()
 
-        self.request_timeout = float(env.get("AGENT_TIMEOUT", "60"))
+        self.request_timeout = float(env.get("AGENT_TIMEOUT", "90"))
         self.search_timeout = float(env.get("SEARCH_TIMEOUT", "10"))
         self.scrape_timeout = float(env.get("SCRAPE_TIMEOUT", "15"))
         self.max_llm_turns = int(env.get("MAX_LLM_TURNS", "8"))
-        self.max_results_per_source = int(env.get("MAX_RESULTS_PER_SOURCE", "5"))
-        self.max_scrapes = int(env.get("MAX_SCRAPES", "6"))
+        self.max_results_per_source = int(env.get("MAX_RESULTS_PER_SOURCE", "15"))
+        self.max_scrapes = int(env.get("MAX_SCRAPES", "8"))
 
     @property
     def llm_configured(self) -> bool:

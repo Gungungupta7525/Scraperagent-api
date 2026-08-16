@@ -2,48 +2,119 @@ from typing import List
 
 
 SOURCE_TEMPLATES = {
+    # developer
     "github": "site:github.com {terms}",
     "gitlab": "site:gitlab.com {terms}",
     "bitbucket": "site:bitbucket.org {terms}",
+    "stackoverflow": "site:stackoverflow.com/users {terms}",
+    "leetcode": "site:leetcode.com {terms}",
+    "hackerrank": "site:hackerrank.com {terms}",
+    "codepen": "site:codepen.io {terms}",
+    "devto": "site:dev.to {terms}",
+    "hashnode": "site:hashnode.com {terms}",
+    # ai / ml / data
+    "kaggle": "site:kaggle.com {terms}",
+    "scholar": "site:scholar.google.com {terms}",
+    "researchgate": "site:researchgate.net {terms}",
+    "huggingface": "site:huggingface.co {terms}",
+    # general professional
     "linkedin": "site:linkedin.com/in {terms}",
     "indeed": "site:indeed.com/resumes {terms}",
+    "naukri": "site:naukri.com {terms}",
     "wellfound": "site:wellfound.com/profile {terms}",
-    "stackoverflow": "site:stackoverflow.com/users {terms}",
-    "kaggle": "site:kaggle.com {terms}",
+    "instahyre": "site:instahyre.com {terms}",
+    "cutshort": "site:cutshort.io {terms}",
+    # design
     "behance": "site:behance.net {terms}",
     "dribbble": "site:dribbble.com {terms}",
+    "artstation": "site:artstation.com {terms}",
+    # research
+    "orcid": "site:orcid.org {terms}",
+    # startup
+    "producthunt": "site:producthunt.com {terms}",
+    "indiehackers": "site:indiehackers.com {terms}",
 }
 
 SOURCE_LABELS = {
     "github": "GitHub",
     "gitlab": "GitLab",
     "bitbucket": "Bitbucket",
+    "stackoverflow": "Stack Overflow",
+    "leetcode": "LeetCode",
+    "hackerrank": "HackerRank",
+    "codepen": "CodePen",
+    "devto": "Dev.to",
+    "hashnode": "Hashnode",
+    "kaggle": "Kaggle",
+    "scholar": "Google Scholar",
+    "researchgate": "ResearchGate",
+    "huggingface": "Hugging Face",
     "linkedin": "LinkedIn",
     "indeed": "Indeed",
+    "naukri": "Naukri",
     "wellfound": "Wellfound",
-    "stackoverflow": "Stack Overflow",
-    "kaggle": "Kaggle",
+    "instahyre": "Instahyre",
+    "cutshort": "Cutshort",
     "behance": "Behance",
     "dribbble": "Dribbble",
+    "artstation": "ArtStation",
+    "orcid": "ORCID",
+    "producthunt": "Product Hunt",
+    "indiehackers": "Indie Hackers",
 }
 
-DEFAULT_SOURCES = ["github", "gitlab", "bitbucket", "linkedin", "wellfound"]
-
-ROLE_ADAPTIVE = {
-    "stackoverflow": ("developer", "backend", "software", "frontend", "engineer", "full-stack"),
-    "kaggle": ("data", "ml", "machine learning", "ai", "analyst", "scientist", "deep learning"),
-    "behance": ("design", "ui", "ux", "creative", "graphic", "illustrator"),
-    "dribbble": ("design", "ui", "ux", "creative", "graphic", "illustrator"),
+# Categories from the product spec. Sources repeat across categories on purpose.
+CATEGORY_SOURCES = {
+    "developer": ["github", "gitlab", "bitbucket", "stackoverflow", "leetcode", "hackerrank", "codepen", "devto", "hashnode"],
+    "data": ["kaggle", "github", "scholar", "researchgate", "huggingface"],
+    "general": ["linkedin", "indeed", "naukri", "wellfound", "instahyre", "cutshort"],
+    "design": ["behance", "dribbble", "artstation", "codepen"],
+    "research": ["scholar", "researchgate", "orcid"],
+    "startup": ["wellfound", "producthunt", "indiehackers", "github", "linkedin"],
 }
 
+CATEGORY_KEYWORDS = {
+    "developer": (
+        "developer", "software", "backend", "frontend", "full-stack", "full stack", "engineer", "programmer",
+        "devops", "sre", "mobile", "react", "angular", "python", "javascript", "typescript", "java", "golang",
+        "rust", "c++", "coder", "coding", "web development", "api",
+    ),
+    "data": (
+        "data", "machine learning", "ml", "ai", "analyst", "scientist", "deep learning", "nlp", "data science",
+        "artificial intelligence", "big data", "llm", "computer vision", "research",
+    ),
+    "design": (
+        "design", "ui", "ux", "creative", "graphic", "illustrator", "visual", "product designer", "figma",
+        "art director", "animation", "3d", "motion",
+    ),
+    "research": (
+        "researcher", "phd", "ph.d", "professor", "academic", "postdoc", "research scientist", "scholar",
+        "university", "paper", "publication", "research engineer",
+    ),
+    "startup": (
+        "startup", "founder", "co-founder", "cofounder", "early-stage", "early stage", "product manager",
+        "product lead", "growth", "series a", "venture",
+    ),
+}
 
-def role_adaptive_sources(job_description: str) -> List[str]:
+MAX_SOURCES_PER_REQUEST = 15
+
+
+def _categories_for(job_description: str) -> List[str]:
     text = job_description.lower()
-    return [source for source, keywords in ROLE_ADAPTIVE.items() if any(k in text for k in keywords)]
+    return [category for category, keywords in CATEGORY_KEYWORDS.items() if any(k in text for k in keywords)]
 
 
 def resolve_sources(job_description: str, requested: List[str] | None = None) -> List[str]:
     if requested:
         allowed = [s for s in requested if s in SOURCE_TEMPLATES]
-        return allowed or list(DEFAULT_SOURCES)
-    return list(DEFAULT_SOURCES) + role_adaptive_sources(job_description)
+        return allowed or ["github", "linkedin", "wellfound"]
+    categories = _categories_for(job_description) or ["general"]
+    if "general" not in categories:
+        categories = ["general"] + categories
+    ordered = []
+    for category in categories:
+        for source in CATEGORY_SOURCES[category]:
+            if source not in ordered:
+                ordered.append(source)
+    return ordered[:MAX_SOURCES_PER_REQUEST]
