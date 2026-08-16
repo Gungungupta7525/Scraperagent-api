@@ -1,10 +1,17 @@
+import asyncio
+import json
+import queue
+import threading
+import time
+
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .agent import ScrapingAgent, UpstreamError
 from .config import Settings
-from .schemas import ScrapingRequest, ScrapingResponse
+from .schemas import ScrapingRequest
 
 settings = Settings()
 
@@ -34,18 +41,61 @@ def require_api_key(x_api_key: str = Header(default=None)):
     return x_api_key
 
 
+def _run_job(agent: ScrapingAgent, job_description: str, sources, max_candidates: int, out: "queue.Queue"):
+    def on_status(message: str) -> None:
+        out.put({"type": "status", "message": message})
+
+    try:
+        result = agent.run(
+            job_description,
+            sources=sources,
+            max_candidates=max_candidates,
+            on_status=on_status,
+        )
+        out.put({"type": "result", "data": result})
+    except UpstreamError as exc:
+        out.put({"type": "error", "detail": str(exc), "status_code": 503})
+    except Exception as exc:  # noqa: BLE001 - stream an error rather than silently hanging
+        out.put({"type": "error", "detail": f"internal error: {exc}", "status_code": 500})
+
+
+async def _ndjson(out: "queue.Queue", thread: threading.Thread):
+    last_beat = time.monotonic()
+    while thread.is_alive() or not out.empty():
+        try:
+            item = out.get_nowait()
+            yield json.dumps(item) + "\n"
+            if item.get("type") in ("result", "error"):
+                return
+            last_beat = time.monotonic()
+        except queue.Empty:
+            if time.monotonic() - last_beat >= 10:
+                yield json.dumps({"type": "status", "message": "Still working…"}) + "\n"
+                last_beat = time.monotonic()
+            await asyncio.sleep(0.1)
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "llm_configured": settings.llm_configured}
 
 
-@app.post("/scraping-agent", response_model=ScrapingResponse, dependencies=[Depends(require_api_key)])
-def scraping_agent(payload: ScrapingRequest):
+@app.post("/scraping-agent", dependencies=[Depends(require_api_key)])
+def scraping_agent(payload: ScrapingRequest, stream: int = 0):
     if not settings.llm_configured:
         raise HTTPException(
             status_code=503,
             detail="no LLM provider configured: set GROQ_API_KEY and/or GEMINI_API_KEY",
         )
+    if stream:
+        out: "queue.Queue" = queue.Queue()
+        thread = threading.Thread(
+            target=_run_job,
+            args=(get_agent(), payload.job_description, payload.sources, payload.max_candidates, out),
+            daemon=True,
+        )
+        thread.start()
+        return StreamingResponse(_ndjson(out, thread), media_type="application/x-ndjson")
     try:
         return get_agent().run(
             payload.job_description,

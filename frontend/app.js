@@ -58,15 +58,18 @@
   function addTyping() {
     const row = el("div", "msg assistant");
     const bubble = el("div", "bubble");
-    const typing = el("div", "typing");
-    typing.appendChild(el("span"));
-    typing.appendChild(el("span"));
-    typing.appendChild(el("span"));
-    bubble.appendChild(typing);
+    const label = el("div", "typing-text", "Connecting to the backend…");
+    bubble.appendChild(label);
     row.appendChild(bubble);
     chat.appendChild(row);
     scrollBottom();
-    return row;
+    return {
+      row,
+      setText: (text) => {
+        label.textContent = text;
+        scrollBottom();
+      },
+    };
   }
 
   function escapeHtml(value) {
@@ -231,10 +234,17 @@
     autoResize();
 
     addMessage("user", text);
-    const typingRow = addTyping();
+    const typing = addTyping();
+
+    const showError = (detail) => {
+      const bubble = el("div", "msg assistant error");
+      bubble.appendChild(el("div", "bubble", detail));
+      chat.appendChild(bubble);
+      scrollBottom();
+    };
 
     try {
-      const res = await fetch(`${settings.baseUrl}/scraping-agent`, {
+      const res = await fetch(`${settings.baseUrl}/scraping-agent?stream=1`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -247,33 +257,82 @@
         signal: AbortSignal.timeout(120000),
       });
 
-      typingRow.remove();
-
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        let detail = data.detail || `Request failed (${res.status})`;
+        let detail = `Request failed (${res.status})`;
+        const data = await res.json().catch(() => ({}));
+        if (data.detail) detail = data.detail;
         if (res.status === 401) {
           detail = "401 Unauthorized — this API requires an API key. Open Settings and add it.";
         } else if (res.status === 503) {
           detail = "503 Upstream failure — the backend couldn't reach an LLM or search provider. Try again shortly.";
         }
-        const bubble = el("div", "msg assistant error");
-        bubble.appendChild(el("div", "bubble", detail));
-        chat.appendChild(bubble);
-        scrollBottom();
+        typing.remove();
+        showError(detail);
         return;
       }
 
-      renderCandidates(data);
-      setStatus("ok", "API online");
+      if (!res.body) {
+        typing.remove();
+        showError("The API did not return a stream. Check the base URL and redeploy the backend.");
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let result = null;
+
+      const handleLine = (line) => {
+        const msg = JSON.parse(line);
+        if (msg.type === "status") {
+          typing.setText(msg.message);
+        } else if (msg.type === "result") {
+          result = msg.data;
+        } else if (msg.type === "error") {
+          throw Object.assign(new Error(msg.detail || "API error"), { apiStatus: msg.status_code });
+        }
+      };
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf("\n")) !== -1) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+          handleLine(line);
+        }
+      }
+
+      typing.remove();
+
+      if (!result && buf.trim()) {
+        try {
+          result = JSON.parse(buf.trim());
+        } catch {
+          /* ignore */
+        }
+      }
+
+      if (result) {
+        renderCandidates(result);
+        setStatus("ok", "API online");
+      } else {
+        showError("The API finished without returning candidates.");
+      }
     } catch (err) {
-      typingRow.remove();
+      typing.remove();
       let detail = "Could not reach the API. Check that it's deployed and your base URL is correct.";
-      if (err.name === "TimeoutError") detail = "Request timed out after 120s. Try a shorter job description.";
-      const bubble = el("div", "msg assistant error");
-      bubble.appendChild(el("div", "bubble", detail));
-      chat.appendChild(bubble);
-      scrollBottom();
+      if (err.name === "TimeoutError") {
+        detail = "Request timed out after 120s. Try a shorter job description.";
+      } else if (err.apiStatus === 503) {
+        detail = "503 Upstream failure — the backend couldn't reach an LLM or search provider. Try again shortly.";
+      } else if (err.message && err.message !== "AbortError") {
+        detail = err.message;
+      }
+      showError(detail);
       setStatus("err", "API offline");
     } finally {
       busy = false;
@@ -305,10 +364,32 @@
     checkHealth();
   }
 
+  /* ---------- sources dropdown ---------- */
+
+  function initSourcesMenu() {
+    const btn = document.getElementById("sources-btn");
+    const menu = document.getElementById("sources-menu");
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = menu.classList.toggle("hidden");
+      btn.setAttribute("aria-expanded", String(!open));
+    });
+    menu.addEventListener("click", (e) => {
+      e.stopPropagation();
+      menu.classList.add("hidden");
+      btn.setAttribute("aria-expanded", "false");
+    });
+    document.addEventListener("click", () => {
+      menu.classList.add("hidden");
+      btn.setAttribute("aria-expanded", "false");
+    });
+  }
+
   /* ---------- init ---------- */
 
   function init() {
     renderSuggestions();
+    initSourcesMenu();
 
     const intro = el("div", "msg assistant");
     const bubble = el("div", "bubble");

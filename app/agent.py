@@ -67,14 +67,18 @@ class ScrapingAgent:
         self.scraper = PageScraper(settings)
         self.providers = build_providers(settings)
 
-    def run(self, job_description: str, sources=None, max_candidates: int = 10):
+    def run(self, job_description: str, sources=None, max_candidates: int = 10, on_status=None):
+        emit = on_status or (lambda message: None)
         deadline = time.monotonic() + self.settings.request_timeout
         self.search.reset()
+        emit("Connected to the backend")
         allowed = resolve_sources(job_description, sources)
+        emit("Analyzing the job description and planning searches…")
 
         primary_error = None
         tool_provider = next((p for p in self.providers if p.tool_capable), None)
         if tool_provider is not None:
+            emit("Searching candidate sources with the AI agent…")
             try:
                 content = tool_provider.provider.tool_loop(
                     job_description,
@@ -84,12 +88,13 @@ class ScrapingAgent:
                 )
                 candidates = self._parse_candidate_list(content)
                 if candidates:
+                    emit("Ranking best matches…")
                     return self._build_response(job_description, candidates, max_candidates, partial=False)
                 primary_error = "tool loop returned no candidates"
             except Exception as exc:  # noqa: BLE001
                 primary_error = str(exc)[:300]
 
-        candidates, provider_error = self._plan_and_execute(job_description, allowed, deadline)
+        candidates, provider_error = self._plan_and_execute(job_description, allowed, deadline, emit)
         if candidates is None:
             raise UpstreamError(f"upstream failure: {primary_error or 'no tool-calling provider'}; {provider_error or 'no fallback provider'}")
         return self._build_response(job_description, candidates, max_candidates, partial=time.monotonic() >= deadline)
@@ -123,7 +128,8 @@ class ScrapingAgent:
                 return {"url": url, "error": str(exc)[:200]}
         return {"error": f"unknown tool: {name}"}
 
-    def _plan_and_execute(self, job_description: str, sources: list, deadline: float):
+    def _plan_and_execute(self, job_description: str, sources: list, deadline: float, emit=None):
+        emit = emit or (lambda message: None)
         last_error = None
         last_results = {}
         llm_ok = False
@@ -132,13 +138,15 @@ class ScrapingAgent:
                 last_error = "request timeout before fallback ran"
                 break
             try:
+                emit(f"Planning searches with {adapter.name}…")
                 queries = self._generate_queries(adapter, job_description, sources, deadline)
                 query_list = queries.get("queries", []) if isinstance(queries, dict) else queries
                 if not query_list:
                     query_list = self._default_queries(job_description, sources)
-                results_by_source = self._run_searches(query_list, deadline)
+                results_by_source = self._run_searches(query_list, deadline, emit)
                 last_results = results_by_source
-                scraped = self._run_scrapes(results_by_source, deadline)
+                scraped = self._run_scrapes(results_by_source, deadline, emit)
+                emit("Generating ranked candidate profiles…")
                 candidates = self._extract_candidates(adapter, job_description, results_by_source, scraped, deadline)
                 llm_ok = True
                 if candidates:
@@ -147,6 +155,7 @@ class ScrapingAgent:
             except Exception as exc:  # noqa: BLE001
                 last_error = f"{adapter.name}: {str(exc)[:200]}"
         if llm_ok:
+            emit("Ranking best matches…")
             heuristic = self._heuristic_candidates(job_description, last_results)
             if heuristic:
                 return heuristic, None
@@ -189,7 +198,8 @@ class ScrapingAgent:
         terms = text[:150]
         return [{"source": s, "query": SOURCE_TEMPLATES[s].format(terms=terms)} for s in sources]
 
-    def _run_searches(self, queries: list, deadline: float):
+    def _run_searches(self, queries: list, deadline: float, emit=None):
+        emit = emit or (lambda message: None)
         out = {}
         for item in queries:
             if self._remaining(deadline) <= 0:
@@ -197,10 +207,12 @@ class ScrapingAgent:
             source = item["source"]
             if source in out:
                 continue
+            emit(f"Looking for candidates on {source}…")
             out[source] = self.search.search_source(item["query"], source, self.settings.max_results_per_source)
         return out
 
-    def _run_scrapes(self, results_by_source: dict, deadline: float):
+    def _run_scrapes(self, results_by_source: dict, deadline: float, emit=None):
+        emit = emit or (lambda message: None)
         urls = []
         for results in results_by_source.values():
             for row in results:
@@ -208,6 +220,8 @@ class ScrapingAgent:
                 if url and url not in urls:
                     urls.append(url)
         scraped = {}
+        if urls:
+            emit("Retrieving profile details…")
         for url in urls[: self.settings.max_scrapes]:
             if self._remaining(deadline) <= 0:
                 break
