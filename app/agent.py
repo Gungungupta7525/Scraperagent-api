@@ -124,7 +124,7 @@ def build_providers(settings: Settings):
     adapters = []
     if settings.groq_api_key:
         primary = GroqProvider(settings.groq_api_key, settings.groq_model)
-        adapters.append(LLMAdapter("groq-primary", primary, tool_capable=True))
+        adapters.append(LLMAdapter("groq-primary", primary, tool_capable=False))
         if settings.gemini_api_key:
             adapters.append(LLMAdapter("gemini-flash", GeminiProvider(settings.gemini_api_key, settings.gemini_model)))
         adapters.append(LLMAdapter("groq-small", GroqProvider(settings.groq_api_key, settings.groq_fallback_model)))
@@ -219,11 +219,19 @@ class ScrapingAgent:
                 query_list = self._complete_queries(query_list, sources, job_description)
                 results_by_source = self._run_searches(query_list, deadline, emit)
                 last_results = results_by_source
+
+                # Fast path: heuristic extraction is instant — use it first.
+                heuristic = self._heuristic_candidates(job_description, results_by_source)
+                if len(heuristic) >= 10:
+                    emit("Ranking best matches…")
+                    return heuristic, None
+
+                # Slow path: LLM extraction for extra quality (only when heuristic found few).
                 scraped = self._run_scrapes(results_by_source, deadline, emit)
                 emit("Generating ranked candidate profiles…")
                 candidates = self._extract_candidates(adapter, job_description, results_by_source, scraped, deadline)
                 llm_ok = True
-                candidates = self._merge_candidates(candidates, self._heuristic_candidates(job_description, results_by_source))
+                candidates = self._merge_candidates(candidates, heuristic)
                 if candidates:
                     return candidates, None
                 last_error = f"{adapter.name}: no candidates parsed"
@@ -233,6 +241,14 @@ class ScrapingAgent:
             emit("Ranking best matches…")
             heuristic = self._heuristic_candidates(job_description, last_results)
             return heuristic, None
+        # No LLM succeeded at all — still try heuristic with default queries.
+        if not last_results and sources:
+            emit("Searching candidate sources (default queries)…")
+            default_q = self._default_queries(job_description, sources)
+            last_results = self._run_searches(default_q, deadline, emit)
+        if last_results:
+            emit("Ranking best matches…")
+            return self._heuristic_candidates(job_description, last_results), None
         return None, last_error
 
     @staticmethod

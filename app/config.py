@@ -21,7 +21,7 @@ class Settings:
         self.cors_origins = [o.strip() for o in env.get("CORS_ORIGINS", "*").split(",") if o.strip()]
         self.api_key = (env.get("API_KEY") or "").strip()
 
-        self.request_timeout = float(env.get("AGENT_TIMEOUT", "90"))
+        self.request_timeout = float(env.get("AGENT_TIMEOUT", "60"))
         self.search_timeout = float(env.get("SEARCH_TIMEOUT", "10"))
         self.scrape_timeout = float(env.get("SCRAPE_TIMEOUT", "10"))
         self.max_llm_turns = int(env.get("MAX_LLM_TURNS", "8"))
