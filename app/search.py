@@ -140,5 +140,5 @@ class SearchClient:
                 error = exc
 
         breaker.failure()
-        self._record(source, "failed", error=str(error)[:300])
+        self._record(source, "failed", error=(str(error)[:300] if error else None))
         return []

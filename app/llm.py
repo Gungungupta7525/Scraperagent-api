@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import TYPE_CHECKING, Callable, List
 
 from .sources import SOURCE_TEMPLATES
@@ -60,7 +61,13 @@ TOOL_LOOP_SYSTEM = (
     "- Use web_search to gather results. Use scrape_page on promising profile URLs to confirm fit.\n"
     "- Make queries specific: role + seniority + key skills. Cover multiple sources.\n"
     "- Do NOT fabricate candidates or URLs. Only include candidates actually found in search results or scraped pages.\n"
-    "- Do not scrape anything behind a login, paywall or auth wall.\n\n"
+    "- Do not scrape anything behind a login, paywall or auth wall.\n"
+    "- The web_search results you receive already contain candidate profiles (title, URL, snippet). Extract them directly "
+    "instead of waiting for scrapes.\n"
+    "- If any public profile URL appears in the results (github.com/..., linkedin.com/in/..., wellfound.com/profile/..., "
+    "stackoverflow.com/users/..., kaggle.com/..., behance.net/..., dribbble.com/...), you MUST include it as a candidate. "
+    "Derive the name from the URL slug when the name is unknown.\n"
+    "- Return an empty array ONLY if no public profile URL was found in any search results or scraped page.\n\n"
     "When you have enough evidence, respond with ONLY a JSON array (no markdown) of ranked candidates, best first:\n"
     '[{"name":"...","role":"...","headline":"...","source":"github","url":"...","location":"...",'
     '"skills":["..."],"experience":"...","relevance_score":0.9,"summary":"..."}]'
@@ -115,6 +122,9 @@ def parse_candidates(text: str) -> list:
     obj = extract_json_object(text)
     if isinstance(obj, dict) and obj.get("candidates"):
         return obj["candidates"]
+    stripped = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
+    if stripped != text:
+        return parse_candidates(stripped)
     return []
 
 

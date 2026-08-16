@@ -87,9 +87,18 @@
 
     const intro = el("p");
     const n = data.candidates.length;
-    intro.textContent = n === 0
-      ? "No candidates found for this job description. Try different wording or more detail."
-      : `Found ${n} candidate${n === 1 ? "" : "s"}, ranked by relevance:`;
+    if (n === 0) {
+      const okSources = (data.sources_status || [])
+        .filter((s) => s.status === "ok" && s.candidates_found > 0)
+        .map((s) => `${s.source} (${s.candidates_found})`);
+      intro.textContent =
+        "No candidates found." +
+        (okSources.length
+          ? ` Sources that returned results: ${okSources.join(", ")} — try rephrasing the job description with clearer skills.`
+          : " The search providers returned nothing — try different wording or check the API is up.");
+    } else {
+      intro.textContent = `Found ${n} candidate${n === 1 ? "" : "s"}, ranked by relevance:`;
+    }
     wrap.appendChild(intro);
 
     if (n > 0) {

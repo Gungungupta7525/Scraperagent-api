@@ -61,7 +61,9 @@ class ScrapingAgent:
                     timeout=max(1.0, self._remaining(deadline)),
                 )
                 candidates = self._parse_candidate_list(content)
-                return self._build_response(job_description, candidates, max_candidates, partial=False)
+                if candidates:
+                    return self._build_response(job_description, candidates, max_candidates, partial=False)
+                primary_error = "tool loop returned no candidates"
             except Exception as exc:  # noqa: BLE001
                 primary_error = str(exc)[:300]
 
@@ -101,6 +103,8 @@ class ScrapingAgent:
 
     def _plan_and_execute(self, job_description: str, sources: list, deadline: float):
         last_error = None
+        last_results = {}
+        llm_ok = False
         for adapter in self.providers:
             if self._remaining(deadline) <= 0:
                 last_error = "request timeout before fallback ran"
@@ -111,13 +115,19 @@ class ScrapingAgent:
                 if not query_list:
                     query_list = self._default_queries(job_description, sources)
                 results_by_source = self._run_searches(query_list, deadline)
+                last_results = results_by_source
                 scraped = self._run_scrapes(results_by_source, deadline)
                 candidates = self._extract_candidates(adapter, job_description, results_by_source, scraped, deadline)
-                if candidates is not None:
+                llm_ok = True
+                if candidates:
                     return candidates, None
                 last_error = f"{adapter.name}: no candidates parsed"
             except Exception as exc:  # noqa: BLE001
                 last_error = f"{adapter.name}: {str(exc)[:200]}"
+        if llm_ok:
+            heuristic = self._heuristic_candidates(job_description, last_results)
+            if heuristic:
+                return heuristic, None
         return None, last_error
 
     def _generate_queries(self, adapter: LLMAdapter, job_description: str, sources: list, deadline: float):
@@ -182,9 +192,13 @@ class ScrapingAgent:
 
     def _extract_candidates(self, adapter: LLMAdapter, job_description: str, results_by_source: dict, scraped: dict, deadline: float):
         system = (
-            "You are a recruiting agent. Extract candidate profiles from the search results and scraped text below, "
-            "and rank them best-first for the job description. Only include candidates with a real public profile "
-            "URL from the evidence. Do not invent people.\n"
+            "You are a recruiting agent. Extract candidate profiles from the search results and scraped text below "
+            "and rank them best-first for the job description.\n"
+            "- Treat every search result whose URL is a public profile (github.com/..., linkedin.com/in/..., "
+            "wellfound.com/profile/..., stackoverflow.com/users/..., kaggle.com/..., behance.net/..., dribbble.com/...) as a candidate.\n"
+            "- Derive name, role and skills from the title, URL slug and snippet. Do not invent people who do not appear in the evidence.\n"
+            "- If any public profile URL exists in the evidence, you MUST return it as a candidate. An empty list is only "
+            "acceptable when the evidence contains no public profile URLs at all.\n"
             'Respond with ONLY JSON: {"candidates":[{"name":"...","role":"...","headline":"...","source":"...",'
             '"url":"...","location":"...","skills":["..."],"experience":"...","relevance_score":0.9,"summary":"..."}]}. '
             "relevance_score is 0-1 fit for the job."
@@ -247,6 +261,94 @@ class ScrapingAgent:
     @staticmethod
     def _parse_candidate_list(content: str) -> list:
         return [ScrapingAgent._parse_candidate(item) for item in parse_candidates(content)]
+
+    # -- rule-based safety net: guarantees candidates whenever searches found
+    # -- public profile URLs, even if the LLM returned an empty list.
+
+    _PROFILE_PATTERNS = {
+        "github": ("github.com/",),
+        "linkedin": ("linkedin.com/in/",),
+        "wellfound": ("wellfound.com/profile/",),
+        "stackoverflow": ("stackoverflow.com/users/",),
+        "kaggle": ("kaggle.com/",),
+        "behance": ("behance.net/",),
+        "dribbble": ("dribbble.com/",),
+    }
+
+    _STOPWORDS = {
+        "a", "an", "the", "and", "or", "with", "for", "in", "on", "of", "to", "at", "by", "from",
+        "is", "are", "be", "as", "you", "your", "will", "we", "our", "this", "that", "what", "who",
+        "using", "used", "based", "someone", "somebody",
+    }
+
+    @classmethod
+    def _profile_source(cls, url: str) -> str | None:
+        url_l = url.lower()
+        for source, patterns in cls._PROFILE_PATTERNS.items():
+            if any(p in url_l for p in patterns):
+                return source
+        return None
+
+    @classmethod
+    def _name_from_url(cls, url: str) -> str | None:
+        match = re.search(r"(?:github|wellfound|linkedin|stackoverflow|kaggle|behance|dribbble)\.com/", url.lower())
+        if not match:
+            return None
+        slug = url[match.end():].split("?", 1)[0].rstrip("/")
+        parts = [p for p in slug.split("/") if p]
+        if parts and parts[0] in ("in", "profile", "users"):
+            parts = parts[1:]
+        if parts and parts[0].isdigit() and len(parts) > 1:
+            parts = parts[1:]
+        if not parts:
+            return None
+        return re.sub(r"[-_+]+", " ", parts[0]).title()
+
+    @classmethod
+    def _keywords(cls, text: str) -> list:
+        words = re.findall(r"[a-z][a-z0-9+#.-]{1,}", text.lower())
+        return list(dict.fromkeys(w for w in words if len(w) > 2 and w not in cls._STOPWORDS))[:12]
+
+    @classmethod
+    def _heuristic_score(cls, job_description: str, title: str, snippet: str) -> float:
+        keywords = cls._keywords(job_description)
+        if not keywords:
+            return 0.6
+        haystack = f"{title} {snippet}".lower()
+        hits = sum(1 for kw in keywords if kw in haystack)
+        score = 0.5 + 0.45 * (hits / len(keywords))
+        return round(min(0.95, score), 2)
+
+    def _heuristic_candidates(self, job_description: str, results_by_source: dict) -> list:
+        candidates = []
+        seen = set()
+        for source, results in results_by_source.items():
+            for row in results or []:
+                url = (row.get("url") or "").strip()
+                url_l = url.lower()
+                if url in seen or "github.com/orgs/" in url_l or "wellfound.com/company/" in url_l:
+                    continue
+                src = self._profile_source(url)
+                if not src:
+                    continue
+                seen.add(url)
+                title = (row.get("title") or "").strip()
+                snippet = (row.get("snippet") or "").strip()
+                candidates.append(
+                    {
+                        "name": self._name_from_url(url),
+                        "role": None,
+                        "headline": title or None,
+                        "source": src,
+                        "url": url,
+                        "location": None,
+                        "skills": [],
+                        "experience": None,
+                        "relevance_score": self._heuristic_score(job_description, title, snippet),
+                        "summary": snippet[:200] or None,
+                    }
+                )
+        return candidates
 
     def _build_response(self, job_description: str, candidates: list, max_candidates: int, partial: bool) -> dict:
         ranked = sorted(
