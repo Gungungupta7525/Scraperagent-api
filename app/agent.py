@@ -191,6 +191,8 @@ class ScrapingAgent:
                 ],
             }
         if name == "scrape_page":
+            if self._remaining(deadline) <= 5:
+                return {"error": "timeout imminent, skip scrape"}
             url = (args.get("url") or "").strip()
             if not url.startswith(("http://", "https://")):
                 return {"error": "invalid url"}
@@ -335,12 +337,14 @@ class ScrapingAgent:
                 if url and url not in urls:
                     urls.append(url)
         scraped = {}
-        if urls:
-            emit("Retrieving profile details…")
-        for url in urls[: self.settings.max_scrapes]:
+        targets = urls[: self.settings.max_scrapes]
+        if targets:
+            emit(f"Retrieving profile details ({len(targets)} pages)…")
+        for idx, url in enumerate(targets, start=1):
             if self._remaining(deadline) <= 0:
                 break
             try:
+                emit(f"Retrieving profile details ({idx}/{len(targets)})…")
                 scraped[url] = self.scraper.scrape(url)
             except Exception:  # noqa: BLE001 - skip and log on failure rather than blocking
                 continue

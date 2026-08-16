@@ -254,7 +254,7 @@
           job_description: text,
           max_candidates: CONFIG.MAX_CANDIDATES,
         }),
-        signal: AbortSignal.timeout(120000),
+        signal: AbortSignal.timeout(300000),
       });
 
       if (!res.ok) {
@@ -326,7 +326,7 @@
       typing.remove();
       let detail = "Could not reach the API. Check that it's deployed and your base URL is correct.";
       if (err.name === "TimeoutError") {
-        detail = "Request timed out after 120s. Try a shorter job description.";
+        detail = "Request timed out after 5 minutes. Try a shorter job description.";
       } else if (err.apiStatus === 503) {
         detail = "503 Upstream failure — the backend couldn't reach an LLM or search provider. Try again shortly.";
       } else if (err.message && err.message !== "AbortError") {

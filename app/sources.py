@@ -67,8 +67,8 @@ SOURCE_LABELS = {
 CATEGORY_SOURCES = {
     "developer": ["github", "gitlab", "bitbucket", "stackoverflow", "leetcode", "hackerrank", "codepen", "devto", "hashnode"],
     "data": ["kaggle", "github", "scholar", "researchgate", "huggingface"],
-    "general": ["linkedin", "indeed", "naukri", "wellfound", "instahyre", "cutshort"],
-    "design": ["behance", "dribbble", "artstation", "codepen"],
+    "general": ["linkedin", "wellfound", "cutshort", "github", "stackoverflow"],
+    "design": ["behance", "dribbble", "artstation", "codepen", "linkedin"],
     "research": ["scholar", "researchgate", "orcid"],
     "startup": ["wellfound", "producthunt", "indiehackers", "github", "linkedin"],
 }
@@ -97,7 +97,7 @@ CATEGORY_KEYWORDS = {
     ),
 }
 
-MAX_SOURCES_PER_REQUEST = 15
+MAX_SOURCES_PER_REQUEST = 10
 
 
 def _categories_for(job_description: str) -> List[str]:

@@ -169,7 +169,7 @@ class GroqProvider:
                 messages=messages,
                 tools=TOOLS,
                 tool_choice="auto",
-                timeout=timeout,
+                timeout=min(timeout, 30.0),
             )
             message = response.choices[0].message
             tool_calls = getattr(message, "tool_calls", None)
