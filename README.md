@@ -18,6 +18,10 @@ Live demo: **https://scraperagent-api.onrender.com/**
 
 `POST /scraping-agent` — one job description in, ranked candidates out. Stateless (no chat history).
 
+With `?stream=1` the endpoint returns live progress as newline-delimited JSON
+(`{"type":"status","message":"Looking for candidates on github…"}`, then a final
+`{"type":"result","data":{...}}`), so the UI can show the agent working in real time.
+
 Request:
 
 ```json
@@ -25,6 +29,8 @@ Request:
 ```
 
 Response (200): `candidates[]` ranked with `relevance_score`, plus `sources_status` showing which sources succeeded/failed.
+
+Default public sources: GitHub, GitLab, Bitbucket, LinkedIn X-ray (`/in` public snippets), Wellfound — plus role-adaptive Stack Overflow / Kaggle / Behance / Dribbble.
 
 Errors: **503** upstream failure (no LLM/provider reachable), **200 empty list** when nothing found, optional **401** when `API_KEY` is set on the backend.
 
@@ -50,7 +56,7 @@ The base URL and API key can also be changed from the ⚙️ settings in the UI 
 | `GROQ_API_KEY` | Yes | Primary LLM |
 | `GROQ_MODEL` | No | Override model |
 | `GEMINI_API_KEY` | No | LLM fallback (Gemini Flash) |
-| `TAVILY_API_KEY` | No | Search fallback if DuckDuckGo is rate-limited |
+| `TAVILY_API_KEY` | No | **Primary** search backend when set (free tier: 1,000 searches/mo at app.tavily.com); falls back to DuckDuckGo otherwise |
 | `API_KEY` | No | If set, clients must send `X-API-Key` |
 | `CORS_ORIGINS` | No | Defaults to `*` |
 

@@ -3,6 +3,8 @@ from typing import List
 
 SOURCE_TEMPLATES = {
     "github": "site:github.com {terms}",
+    "gitlab": "site:gitlab.com {terms}",
+    "bitbucket": "site:bitbucket.org {terms}",
     "linkedin": "site:linkedin.com/in {terms}",
     "indeed": "site:indeed.com/resumes {terms}",
     "wellfound": "site:wellfound.com/profile {terms}",
@@ -14,6 +16,8 @@ SOURCE_TEMPLATES = {
 
 SOURCE_LABELS = {
     "github": "GitHub",
+    "gitlab": "GitLab",
+    "bitbucket": "Bitbucket",
     "linkedin": "LinkedIn",
     "indeed": "Indeed",
     "wellfound": "Wellfound",
@@ -23,7 +27,7 @@ SOURCE_LABELS = {
     "dribbble": "Dribbble",
 }
 
-DEFAULT_SOURCES = ["github", "linkedin", "indeed", "wellfound"]
+DEFAULT_SOURCES = ["github", "gitlab", "bitbucket", "linkedin", "wellfound"]
 
 ROLE_ADAPTIVE = {
     "stackoverflow": ("developer", "backend", "software", "frontend", "engineer", "full-stack"),

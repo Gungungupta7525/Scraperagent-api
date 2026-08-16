@@ -14,12 +14,14 @@ if TYPE_CHECKING:
     from groq.types.chat import ChatCompletionMessageParam
 
 
-_PROFILE_SOURCES = ("github", "linkedin", "wellfound", "stackoverflow", "kaggle", "behance", "dribbble")
+_PROFILE_SOURCES = ("github", "gitlab", "bitbucket", "linkedin", "wellfound", "stackoverflow", "kaggle", "behance", "dribbble")
 
 # Strict patterns: a valid candidate URL is a single public profile, not a job
 # page, search listing, org/company page, or anything else.
 _PROFILE_URL_PATTERNS = [
     re.compile(r"^https?://(?:www\.)?github\.com/[^/]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?gitlab\.com/[^/]+/?$", re.I),
+    re.compile(r"^https?://(?:www\.)?bitbucket\.org/[^/]+/?$", re.I),
     re.compile(r"^https?://(?:www\.|in\.)?linkedin\.com/in/[\w.-]+/?$", re.I),
     re.compile(r"^https?://(?:www\.)?wellfound\.com/(?:profile|u)/[\w.-]+/?$", re.I),
     re.compile(r"^https?://(?:www\.)?stackoverflow\.com/users/\d+/[\w.-]+/?$", re.I),
@@ -167,7 +169,8 @@ class ScrapingAgent:
         system = (
             "You plan web searches to source candidate profiles for a job description. "
             f"Allowed sources: {allowed}. Build 3-8 targeted queries across the relevant sources, using the "
-            "site: operator per source (site:github.com, site:linkedin.com/in, site:indeed.com/resumes, "
+            "site: operator per source (site:github.com, site:gitlab.com, site:bitbucket.org, "
+            "site:linkedin.com/in, site:indeed.com/resumes, "
             "site:wellfound.com/profile, site:stackoverflow.com/users, site:kaggle.com, site:behance.net, "
             "site:dribbble.com). Combine role, seniority, and key skills.\n"
             'Respond with ONLY JSON: {"queries":[{"source":"github","query":"site:github.com senior python backend"}]}'
@@ -317,7 +320,7 @@ class ScrapingAgent:
 
     @classmethod
     def _name_from_url(cls, url: str) -> str | None:
-        match = re.search(r"(?:github|wellfound|linkedin|stackoverflow|kaggle|behance|dribbble)\.com/", url.lower())
+        match = re.search(r"(?:github|gitlab|bitbucket|wellfound|linkedin|stackoverflow|kaggle|behance|dribbble)\.com/", url.lower())
         if not match:
             return None
         slug = url[match.end():].split("?", 1)[0].rstrip("/")

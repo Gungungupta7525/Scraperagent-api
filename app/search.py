@@ -89,13 +89,14 @@ class TavilySearch:
 
 
 class SearchClient:
-    """Coordinates primary (DuckDuckGo, with retry/backoff) and fallback (Tavily) search,
-    with a per-source circuit breaker and a status tracker surfaced in the response."""
+    """Coordinates primary search (Tavily when configured, otherwise DuckDuckGo) and
+    fallback (DuckDuckGo when Tavily fails), with a per-source circuit breaker and a
+    status tracker surfaced in the response."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.ddg = DuckDuckGoSearch(timeout=settings.search_timeout)
         self.tavily = TavilySearch(settings.tavily_api_key, timeout=settings.search_timeout) if settings.tavily_api_key else None
+        self.ddg = DuckDuckGoSearch(timeout=settings.search_timeout)
         self.breakers = {}
         self.status = {}
 
@@ -119,24 +120,20 @@ class SearchClient:
             return []
 
         error = None
-        for attempt in (1, 2):
+        attempts = [(self.tavily, 0), (self.ddg, 0), (self.ddg, 1)] if self.tavily is not None else [(self.ddg, 0), (self.ddg, 1)]
+        for backend, sleep_secs in attempts:
+            if backend is None:
+                continue
+            if sleep_secs:
+                time.sleep(sleep_secs)
             try:
-                results = self.ddg.search(query, max_results)
+                results = backend.search(query, max_results)
                 if results:
                     breaker.success()
                     self._record(source, "ok", candidates=len(results))
                     return results
+                error = RuntimeError(f"{type(backend).__name__} returned no results")
             except Exception as exc:  # noqa: BLE001 - any backend failure is degraded gracefully
-                error = exc
-            time.sleep(attempt)
-
-        if self.tavily is not None:
-            try:
-                results = self.tavily.search(query, max_results)
-                breaker.success()
-                self._record(source, "ok", candidates=len(results))
-                return results
-            except Exception as exc:  # noqa: BLE001
                 error = exc
 
         breaker.failure()
