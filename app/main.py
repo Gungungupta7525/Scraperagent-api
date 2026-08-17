@@ -1,8 +1,10 @@
 import asyncio
 import json
+import logging
 import queue
 import threading
 import time
+import sys
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +15,7 @@ from .agent import ScrapingAgent, UpstreamError
 from .config import Settings
 from .schemas import ScrapingRequest
 
+log = logging.getLogger("scraperagent")
 settings = Settings()
 
 
@@ -45,12 +48,14 @@ def _safe_json(obj):
     try:
         return json.dumps(obj)
     except (TypeError, ValueError) as exc:
+        log.error("json.dumps failed: %s", exc)
         sanitized = {"type": obj.get("type", "error"), "detail": f"serialization error: {exc}"}
         return json.dumps(sanitized)
 
 
 def _run_job(agent: ScrapingAgent, job_description: str, sources, max_candidates: int, out: "queue.Queue"):
     def on_status(message: str) -> None:
+        log.info("STATUS: %s", message)
         out.put({"type": "status", "message": message})
 
     try:
@@ -60,13 +65,17 @@ def _run_job(agent: ScrapingAgent, job_description: str, sources, max_candidates
             max_candidates=max_candidates,
             on_status=on_status,
         )
+        log.info("RESULT: %d candidates, %d sources_status", len(result.get("candidates", [])), len(result.get("sources_status", [])))
         out.put({"type": "result", "data": result})
     except UpstreamError as exc:
+        log.error("UPSTREAM: %s", exc)
         out.put({"type": "error", "detail": str(exc), "status_code": 503})
     except Exception as exc:
+        log.error("EXCEPTION: %s", exc, exc_info=True)
         out.put({"type": "error", "detail": f"internal error: {exc}", "status_code": 500})
     finally:
         out.put(None)
+        log.info("THREAD: _run_job finished")
 
 
 async def _ndjson(out: "queue.Queue", thread: threading.Thread):
@@ -75,22 +84,28 @@ async def _ndjson(out: "queue.Queue", thread: threading.Thread):
         try:
             item = out.get_nowait()
             if item is None:
+                log.info("NDJSON: got sentinel, closing")
                 return
-            yield _safe_json(item) + "\n"
+            raw = _safe_json(item)
+            log.info("NDJSON: yielding %s (len=%d)", item.get("type"), len(raw))
+            yield raw + "\n"
             if item.get("type") in ("result", "error"):
                 return
             last_beat = time.monotonic()
         except queue.Empty:
             if not thread.is_alive():
+                log.info("NDJSON: thread dead, checking queue one more time")
                 try:
                     item = out.get_nowait()
                     if item is None:
                         return
-                    yield _safe_json(item) + "\n"
+                    raw = _safe_json(item)
+                    log.info("NDJSON: yielding final %s (len=%d)", item.get("type"), len(raw))
+                    yield raw + "\n"
                     if item.get("type") in ("result", "error"):
                         return
                 except queue.Empty:
-                    pass
+                    log.warning("NDJSON: thread dead, queue empty, no result sent!")
                 return
             if time.monotonic() - last_beat >= 10:
                 yield _safe_json({"type": "status", "message": "Still working…"}) + "\n"

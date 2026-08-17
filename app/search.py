@@ -3,8 +3,11 @@ from __future__ import annotations
 import concurrent.futures
 import threading
 import time
+import warnings
 
 import httpx
+
+warnings.filterwarnings("ignore", message=".*renamed.*ddgs.*")
 
 from .config import Settings
 
