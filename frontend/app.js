@@ -69,6 +69,7 @@
         label.textContent = text;
         scrollBottom();
       },
+      remove: () => row.remove(),
     };
   }
 
