@@ -1,13 +1,17 @@
+from __future__ import annotations
+
+import concurrent.futures
 import time
 
 import httpx
 
 from .config import Settings
 
+_SEARCH_WORKERS = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="ddg")
+_DDG_TIMEOUT = 8.0
+
 
 class CircuitBreaker:
-    """Per-source breaker: trips after `threshold` consecutive failures within one request."""
-
     def __init__(self, threshold: int = 2):
         self.threshold = max(1, threshold)
         self._failures = 0
@@ -28,7 +32,7 @@ class CircuitBreaker:
 
 
 class DuckDuckGoSearch:
-    def __init__(self, timeout: float = 10.0):
+    def __init__(self, timeout: float = _DDG_TIMEOUT):
         self.timeout = timeout
         self._backend = None
 
@@ -43,7 +47,16 @@ class DuckDuckGoSearch:
 
     def search(self, query: str, max_results: int = 5):
         DDGS = self._load()
-        rows = list(DDGS().text(query, max_results=max_results))
+
+        def _call():
+            return list(DDGS().text(query, max_results=max_results))
+
+        future = _SEARCH_WORKERS.submit(_call)
+        try:
+            rows = future.result(timeout=self.timeout)
+        except concurrent.futures.TimeoutError:
+            future.cancel()
+            return []
         return self._normalize(rows)
 
     @staticmethod
@@ -89,14 +102,10 @@ class TavilySearch:
 
 
 class SearchClient:
-    """Coordinates primary search (Tavily when configured, otherwise DuckDuckGo) and
-    fallback (DuckDuckGo when Tavily fails), with a per-source circuit breaker and a
-    status tracker surfaced in the response."""
-
     def __init__(self, settings: Settings):
         self.settings = settings
         self.tavily = TavilySearch(settings.tavily_api_key, timeout=settings.search_timeout) if settings.tavily_api_key else None
-        self.ddg = DuckDuckGoSearch(timeout=settings.search_timeout)
+        self.ddg = DuckDuckGoSearch(timeout=min(_DDG_TIMEOUT, settings.search_timeout))
         self.breakers = {}
         self.status = {}
 
@@ -120,7 +129,7 @@ class SearchClient:
             return []
 
         error = None
-        attempts = [(self.tavily, 0), (self.ddg, 0), (self.ddg, 1)] if self.tavily is not None else [(self.ddg, 0), (self.ddg, 1)]
+        attempts = [(self.tavily, 0), (self.ddg, 0)] if self.tavily is not None else [(self.ddg, 0)]
         for backend, sleep_secs in attempts:
             if backend is None:
                 continue
@@ -133,7 +142,7 @@ class SearchClient:
                     self._record(source, "ok", candidates=len(results))
                     return results
                 error = RuntimeError(f"{type(backend).__name__} returned no results")
-            except Exception as exc:  # noqa: BLE001 - any backend failure is degraded gracefully
+            except Exception as exc:
                 error = exc
 
         breaker.failure()

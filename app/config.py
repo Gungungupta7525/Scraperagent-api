@@ -25,7 +25,7 @@ class Settings:
         self.search_timeout = float(env.get("SEARCH_TIMEOUT", "10"))
         self.scrape_timeout = float(env.get("SCRAPE_TIMEOUT", "10"))
         self.max_llm_turns = int(env.get("MAX_LLM_TURNS", "8"))
-        self.max_results_per_source = int(env.get("MAX_RESULTS_PER_SOURCE", "10"))
+        self.max_results_per_source = int(env.get("MAX_RESULTS_PER_SOURCE", "15"))
         self.max_scrapes = int(env.get("MAX_SCRAPES", "5"))
 
     @property
