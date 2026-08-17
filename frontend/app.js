@@ -303,7 +303,9 @@
           buf = buf.slice(nl + 1);
           if (!line) continue;
           handleLine(line);
+          if (result) break;
         }
+        if (result) break;
       }
 
       typing.remove();
