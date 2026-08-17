@@ -9,8 +9,7 @@ from .heuristics import extract_heuristic_candidates, rank_candidates
 from .queries import build_default_queries
 from .profiles import profile_source
 
-_SEARCH_WORKERS = concurrent.futures.ThreadPoolExecutor(max_workers=6, thread_name_prefix="search")
-_SEARCH_PHASE_TIMEOUT = 25.0
+_SEARCH_PHASE_TIMEOUT = 10.0
 
 
 class Pipeline:
@@ -51,10 +50,13 @@ class Pipeline:
         emit(f"Searching {len(todo)} sources…")
 
         search_deadline = min(deadline, time.monotonic() + _SEARCH_PHASE_TIMEOUT)
-        futures = {}
-        for source, query in todo:
-            futures[_SEARCH_WORKERS.submit(self.search.search_source, query, source, self.settings.max_results_per_source)] = source
+        max_workers = min(15, len(todo))
 
+        pool = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="search")
+        futures = {
+            pool.submit(self.search.search_source, query, source, self.settings.max_results_per_source): source
+            for source, query in todo
+        }
         done, _ = concurrent.futures.wait(futures, timeout=max(1.0, search_deadline - time.monotonic()))
 
         for future in done:
@@ -64,13 +66,12 @@ class Pipeline:
             except Exception:
                 out[source] = []
 
-        remaining = [f for f, s in futures.items() if f not in done]
-        for f in remaining:
-            f.cancel()
+        pool.shutdown(wait=False, cancel_futures=True)
 
         done_count = len(out)
         total_count = len(todo)
-        emit(f"Searched {done_count}/{total_count} sources, found {sum(len(r) for r in out.values())} results")
+        total_results = sum(len(r) for r in out.values())
+        emit(f"Searched {done_count}/{total_count} sources — {total_results} results")
 
         return out
 

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import concurrent.futures
+import threading
 import time
 
 import httpx
 
 from .config import Settings
 
-_SEARCH_WORKERS = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="ddg")
-_DDG_TIMEOUT = 8.0
+_DDG_TIMEOUT = 4.0
 
 
 class CircuitBreaker:
@@ -47,17 +47,15 @@ class DuckDuckGoSearch:
 
     def search(self, query: str, max_results: int = 5):
         DDGS = self._load()
+        result = [[]]
 
         def _call():
-            return list(DDGS().text(query, max_results=max_results))
+            result[0] = list(DDGS().text(query, max_results=max_results))
 
-        future = _SEARCH_WORKERS.submit(_call)
-        try:
-            rows = future.result(timeout=self.timeout)
-        except concurrent.futures.TimeoutError:
-            future.cancel()
-            return []
-        return self._normalize(rows)
+        t = threading.Thread(target=_call, daemon=True)
+        t.start()
+        t.join(timeout=self.timeout)
+        return self._normalize(result[0])
 
     @staticmethod
     def _normalize(rows):

@@ -5,13 +5,8 @@ from __future__ import annotations
 import time
 
 from .config import Settings
-from .heuristics import rank_candidates
-from .llm import GeminiProvider, GroqProvider, parse_candidates
 from .pipeline import Pipeline
-from .profiles import profile_source
 from .queries import resolve_sources
-from .scrape import PageScraper
-from .search import SearchClient
 
 
 class UpstreamError(Exception):
@@ -28,12 +23,14 @@ class LLMAdapter:
 def build_providers(settings: Settings):
     adapters = []
     if settings.groq_api_key:
+        from .llm import GeminiProvider, GroqProvider
         primary = GroqProvider(settings.groq_api_key, settings.groq_model)
         adapters.append(LLMAdapter("groq-primary", primary, tool_capable=False))
         if settings.gemini_api_key:
             adapters.append(LLMAdapter("gemini-flash", GeminiProvider(settings.gemini_api_key, settings.gemini_model)))
         adapters.append(LLMAdapter("groq-small", GroqProvider(settings.groq_api_key, settings.groq_fallback_model)))
     elif settings.gemini_api_key:
+        from .llm import GeminiProvider
         adapters.append(LLMAdapter("gemini-flash", GeminiProvider(settings.gemini_api_key, settings.gemini_model)))
     return adapters
 
@@ -56,8 +53,8 @@ class ScrapingAgent:
         except Exception as exc:
             raise UpstreamError(f"upstream failure: {exc}") from exc
 
-        if candidates is None:
-            raise UpstreamError("upstream failure: no candidates found")
+        if not candidates:
+            raise UpstreamError("no candidates found — try rephrasing the job description")
 
         emit("Ranking best matches…")
         statuses = [
@@ -72,8 +69,3 @@ class ScrapingAgent:
             "sources_used": sources_used,
             "partial": time.monotonic() >= deadline,
         }
-
-
-def profile_source(url: str) -> str | None:
-    from .profiles import profile_source as _ps
-    return _ps(url)
