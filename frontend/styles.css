@@ -506,13 +506,34 @@ html, body {
   gap: 3px;
 }
 
-.cand-source {
+.source-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  padding: 3px 10px 3px 7px;
+  border-radius: 999px;
+  background: var(--badge-color, var(--bg-elevated));
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+  line-height: 1;
+  transition: opacity 0.15s, transform 0.15s;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
 }
-
-.cand-source svg { flex-shrink: 0; }
+.source-badge:hover {
+  opacity: 0.85;
+  transform: scale(1.04);
+}
+.source-badge svg {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+}
+.source-badge span {
+  color: #fff;
+}
 
 .cand-link {
   color: var(--accent);
@@ -703,16 +724,26 @@ html, body {
   .composer-actions .btn-primary { width: 100%; justify-content: center; }
   .results-section { padding: 0 12px 12px; }
   .results-toolbar { flex-direction: column; align-items: flex-start; }
-  .candidate { padding: 14px 16px; }
-  .cand-top { flex-direction: column; gap: 8px; }
+  .candidate { padding: 14px 14px; }
+  .cand-top { gap: 8px; }
   .cand-score { text-align: left; display: flex; align-items: baseline; gap: 8px; }
-  .cand-footer { flex-direction: column; align-items: flex-start; }
-  .cand-meta { flex-direction: column; gap: 4px; }
+  .score-number { font-size: 18px; }
+  .cand-skills { gap: 4px; }
+  .skill { font-size: 11px; padding: 2px 7px; }
+  .cand-footer { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .cand-meta { flex-direction: column; gap: 6px; }
   .cand-actions { width: 100%; }
   .cand-actions .btn-sm { flex: 1; justify-content: center; }
+  .source-badge { padding: 4px 10px 4px 8px; font-size: 11px; }
+  .source-badge svg { width: 12px; height: 12px; }
   .topbar-actions .sources-btn { display: none; }
   .results-stats { gap: 10px; }
   .threshold-control { width: 100%; justify-content: flex-end; }
+  .modal-card { width: 96vw; padding: 16px; }
+  .modal-lg { width: 98vw; }
+  .detail-header { flex-direction: column; gap: 10px; }
+  .detail-score { font-size: 22px; }
+  .requirement-table td { padding: 6px 8px; font-size: 12px; }
 }
 
 @media (max-width: 480px) {

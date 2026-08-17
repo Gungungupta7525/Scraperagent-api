@@ -90,23 +90,30 @@
   }
 
   /* ---------- source icons ---------- */
-  const SOURCE_ICONS = {
-    github: '<svg viewBox="0 0 16 16" width="12" height="12"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>',
-    linkedin: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="currentColor" d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>',
-  };
-  const SOURCE_NAMES = {
-    github: "GitHub", linkedin: "LinkedIn", wellfound: "Wellfound",
-    indeed: "Indeed", stackoverflow: "Stack Overflow", kaggle: "Kaggle",
-    devto: "DEV.to", hashnode: "Hashnode", artstation: "ArtStation",
-    dribbble: "Dribbble", researchgate: "ResearchGate", orcid: "ORCID",
-    producthunt: "Product Hunt", indiehackers: "Indie Hackers",
-    huggingface: "Hugging Face", google: "Google Scholar",
+  const SOURCES = {
+    github:      { name: "GitHub",         color: "#24292f", icon: '<svg viewBox="0 0 16 16" width="12" height="12"><path fill="#fff" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>' },
+    linkedin:    { name: "LinkedIn",       color: "#0A66C2", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>' },
+    wellfound:   { name: "Wellfound",     color: "#000000", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V9h2v7zm4 0h-2V9h2v7z"/></svg>' },
+    indeed:      { name: "Indeed",        color: "#2164F3", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M4 4h16v16H4V4zm4.5 4.5c0-.83.67-1.5 1.5-1.5h4c.83 0 1.5.67 1.5 1.5v1c0 .83-.67 1.5-1.5 1.5h-1v5.5h-2V11h-1c-.83 0-1.5-.67-1.5-1.5v-1z"/></svg>' },
+    stackoverflow: { name: "Stack Overflow", color: "#F48024", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M15 20H5v-2h10v2zm2-4H7v-2h10v2zm2-4H9V8h10v4zM3 4v16h18V4H3z"/></svg>' },
+    kaggle:      { name: "Kaggle",        color: "#20BEFF", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' },
+    devto:       { name: "DEV.to",        color: "#0A0A0A", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M7.42 10c0-.47.28-.87.7-1.16L12 5.88l3.88 2.96c.42.29.7.69.7 1.16V17c0 .55-.45 1-1 1H8.42c-.55 0-1-.45-1-1v-7z"/></svg>' },
+    hashnode:    { name: "Hashnode",      color: "#2962FF", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M12 2L4 7v10l8 5 8-5V7l-8-5zm0 2.18L17.18 7 12 9.82 6.82 7 12 4.18z"/></svg>' },
+    artstation:  { name: "ArtStation",    color: "#13ADA5", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M0 17.723l2.027 3.505h.001a2.424 2.424 0 002.164 1.333h13.457l-2.792-4.838H0zm24-2.49l-4.397-7.618a2.428 2.428 0 00-2.107-1.222H7.384l5.364 9.291 11.252.002z"/></svg>' },
+    dribbble:    { name: "Dribbble",      color: "#EA4C89", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><circle cx="12" cy="12" r="10" fill="#EA4C89"/><path fill="#fff" d="M8.56 7.06c1.17 1.51 1.92 3.37 2.16 5.36-1.07-.15-2.15-.15-2.99.01-.15-1.07.53-2.13 1.44-2.93l.39-.44zM12 2a10 10 0 00-3.35.58c.81 1.14 1.27 2.52 1.27 3.97 0 .38-.04.75-.11 1.12.74-.13 1.54-.16 2.33-.07.24-1.16.77-2.22 1.51-3.07A10 10 0 0012 2zM7.04 16.11c.4-1.86 1.45-3.56 2.98-4.83.84.72 1.76 1.32 2.74 1.76-.17.61-.54 1.15-1.04 1.52l-.14.1c-.77.54-1.35 1.3-1.55 2.17l-.01.04c-.19.63-.27 1.29-.24 1.94H5.86a4.07 4.07 0 011.18-2.7z"/></svg>' },
+    researchgate: { name: "ResearchGate", color: "#00D0AF", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M19.586 0c-1.16 0-2.236.56-3.037 1.425L13.1 5.07a4.39 4.39 0 00-2.1 2.03l-.014.03-.014.028c-.454.897-.687 1.886-.687 2.89 0 .37.04.736.118 1.095l-2.28 2.28C5.644 12.217 4.27 11.02 3.36 9.58a4.02 4.02 0 00-.79 1.14l-.01.03-.007.025c-.37.853-.556 1.78-.556 2.74 0 1.67.67 3.19 1.76 4.29A6.02 6.02 0 006.42 20a5.95 5.95 0 004.24-1.76l2.88-2.88a4.35 4.35 0 002.1-1.07l4.24-5.26A3.12 3.12 0 0021.7 7.5a3.12 3.12 0 00-2.116-3.9V3.6C20.42 3.6 21 3.02 21 2.3S20.42 1 19.7 1h-.114z"/></svg>' },
+    orcid:       { name: "ORCID",         color: "#A6CE39", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm-1.5 18.9h-3v-9h3v9zM9.75 8.4a1.8 1.8 0 110-3.6 1.8 1.8 0 010 3.6zm11.25 10.5h-3v-4.59c0-1.04-.02-2.38-1.45-2.38-1.45 0-1.67 1.14-1.67 2.31V17.4h-3v-9h2.89v1.23h.04c.4-.76 1.37-1.56 2.83-1.56 3.03 0 3.59 2 3.59 4.6V18.9z"/></svg>' },
+    producthunt: { name: "Product Hunt",  color: "#DA552F", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M12 24C5.37 24 0 18.63 0 12S5.37 0 12 0s12 5.37 12 12-5.37 12-12 12zM9.6 8.4h4.8v3.6H9.6V8.4zm0 5.4h4.8v3.6H9.6v-3.6z"/></svg>' },
+    indiehackers: { name: "Indie Hackers", color: "#0F1C2E", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>' },
+    huggingface: { name: "Hugging Face",  color: "#FFD21E", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><circle cx="12" cy="12" r="10" fill="#FFD21E"/><path fill="#000" d="M8 10a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm8 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm-4 8c3.31 0 6-1.34 6-3v-2c0-1.66-2.69-3-6-3s-6 1.34-6 3v2c0 1.66 2.69 3 6 3z"/></svg>' },
+    google:      { name: "Google Scholar", color: "#4285F4", icon: '<svg viewBox="0 0 24 24" width="12" height="12"><path fill="#fff" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>' },
   };
 
-  function sourceHtml(source) {
-    const icon = SOURCE_ICONS[source] || "";
-    const name = SOURCE_NAMES[source] || source;
-    return icon ? `<span class="cand-source">${icon} ${escapeHtml(name)}</span>` : `<span class="cand-source">${escapeHtml(name)}</span>`;
+  function sourceBadgeHtml(source, url) {
+    const info = SOURCES[source];
+    if (!info) return escapeHtml(source);
+    const href = url ? ` href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : "";
+    return `<a class="source-badge" style="--badge-color:${info.color}"${href} title="Open ${escapeHtml(info.name)} profile">${info.icon}<span>${escapeHtml(info.name)}</span></a>`;
   }
 
   /* ---------- rendering ---------- */
@@ -199,15 +206,8 @@
     if (c.location) meta.appendChild(el("span", "cand-location", "\uD83D\uDCCD " + c.location));
     if (c.source) {
       const src = document.createElement("span");
-      src.innerHTML = sourceHtml(c.source);
+      src.innerHTML = sourceBadgeHtml(c.source, c.url);
       meta.appendChild(src);
-    }
-    if (c.url) {
-      const link = el("a", "cand-link", c.url.replace(/^https?:\/\//, "").replace(/\/$/, ""));
-      link.href = c.url;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      meta.appendChild(link);
     }
     footer.appendChild(meta);
 
@@ -265,9 +265,9 @@
     html += `<div class="detail-section"><h3>Details</h3><table class="requirement-table">`;
     if (c.location) html += `<tr><td>Location</td><td>${escapeHtml(c.location)}</td></tr>`;
     if (c.experience) html += `<tr><td>Experience</td><td>${escapeHtml(c.experience)}</td></tr>`;
-    html += `<tr><td>Source</td><td>${escapeHtml(SOURCE_NAMES[c.source] || c.source || "Unknown")}</td></tr>`;
+    if (c.source) html += `<tr><td>Source</td><td>${sourceBadgeHtml(c.source, c.url)}</td></tr>`;
     if (c.url) {
-      html += `<tr><td>Profile</td><td><a href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer" class="cand-link">View Profile</a></td></tr>`;
+      html += `<tr><td>Profile</td><td><a href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer" class="cand-link">${escapeHtml(c.url).replace(/^https?:\/\//, "").replace(/\/$/, "")}</a></td></tr>`;
     }
     html += `</table></div>`;
 
