@@ -2,32 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ScraperAgent — Candidate Sourcing Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ScraperAgent — AI Candidate Sourcing</title>
   <link rel="stylesheet" href="styles.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕵️</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>" />
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <div class="logo">🕵️</div>
+        <div class="logo">🔍</div>
         <div>
           <h1>ScraperAgent</h1>
-          <p class="tagline">Candidate sourcing chat · paste a job description, get ranked candidates</p>
+          <p class="tagline">AI-Powered Candidate Sourcing</p>
         </div>
       </div>
       <div class="topbar-actions">
         <div class="dropdown" id="sources-dropdown">
           <button id="sources-btn" class="sources-btn" type="button" aria-haspopup="true" aria-expanded="false">
-            🌐 Sources <span class="caret">▾</span>
+            Sources <span class="caret">▾</span>
           </button>
           <div id="sources-menu" class="dropdown-menu hidden" role="menu">
-            <a href="https://www.dice.com/dashboard/login" target="_blank" rel="noopener noreferrer">Dice — login</a>
-            <a href="https://login.monster.com/" target="_blank" rel="noopener noreferrer">Monster — login</a>
-            <a href="https://secure.indeed.com/account/login" target="_blank" rel="noopener noreferrer">Indeed — login</a>
-            <a href="https://www.linkedin.com/login" target="_blank" rel="noopener noreferrer">LinkedIn — login</a>
-            <a href="https://wellfound.com/user/login" target="_blank" rel="noopener noreferrer">Wellfound — login</a>
+            <a href="https://www.dice.com/dashboard/login" target="_blank" rel="noopener noreferrer">Dice</a>
+            <a href="https://login.monster.com/" target="_blank" rel="noopener noreferrer">Monster</a>
+            <a href="https://secure.indeed.com/account/login" target="_blank" rel="noopener noreferrer">Indeed</a>
+            <a href="https://www.linkedin.com/login" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+            <a href="https://wellfound.com/user/login" target="_blank" rel="noopener noreferrer">Wellfound</a>
           </div>
         </div>
         <span id="api-status" class="api-status" title="API connection">—</span>
@@ -35,34 +35,93 @@
       </div>
     </header>
 
-    <main id="chat" class="chat" aria-live="polite"></main>
+    <main class="main-content">
+      <section id="search-section" class="search-section">
+        <div class="search-hero">
+          <h2 class="search-title">Find the right candidates</h2>
+          <p class="search-subtitle">Paste a job description and we'll search public profiles to find the best matches</p>
+        </div>
+        <form id="composer" class="composer" autocomplete="off">
+          <div class="composer-field">
+            <textarea
+              id="input"
+              rows="4"
+              placeholder="Paste a job description, e.g. &#10;Senior Python backend engineer with FastAPI, AWS, Docker, 5+ years experience&#10;..."
+              aria-label="Job description"
+            ></textarea>
+          </div>
+          <div class="composer-actions">
+            <button id="send-btn" type="submit" class="btn-primary btn-lg">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M15 14L2 7.5L15 1V5.5L6 8.5L15 11.5V14Z" fill="currentColor"/></svg>
+              Search for Candidates
+            </button>
+          </div>
+        </form>
+        <div id="suggestions" class="suggestions"></div>
+      </section>
 
-    <div class="composer-wrap">
-      <div id="suggestions" class="suggestions"></div>
-      <form id="composer" class="composer" autocomplete="off">
-        <textarea
-          id="input"
-          rows="1"
-          placeholder='Paste a job description, e.g. "Senior Python backend engineer, FastAPI, AWS"'
-          aria-label="Job description"
-        ></textarea>
-        <button id="send-btn" type="submit" class="send-btn" aria-label="Send">Send ↵</button>
-      </form>
-      <p class="hint">Scrapes public profiles only (GitHub, LinkedIn X-ray, Indeed, Wellfound…) — never behind logins or paywalls.</p>
-    </div>
+      <section id="results-section" class="results-section hidden">
+        <div class="results-header">
+          <div class="results-title-row">
+            <h2 id="results-title">Candidates Found</h2>
+            <button id="new-search-btn" class="btn-ghost" type="button">New Search</button>
+          </div>
+          <div id="results-stats" class="results-stats"></div>
+          <div class="results-toolbar">
+            <div id="results-filters" class="results-filters">
+              <button class="filter-btn active" data-filter="all">All</button>
+              <button class="filter-btn" data-filter="strong">Strong Match</button>
+              <button class="filter-btn" data-filter="good">Good Match</button>
+              <button class="filter-btn" data-filter="review">Needs Review</button>
+            </div>
+            <div class="threshold-control">
+              <label for="threshold-slider">Min match:</label>
+              <input type="range" id="threshold-slider" min="0" max="95" value="0" step="5" />
+              <span id="threshold-value">0%</span>
+            </div>
+          </div>
+        </div>
+        <div id="candidates-list" class="candidates-list"></div>
+        <div id="loading-state" class="state-box hidden">
+          <div class="spinner"></div>
+          <p class="state-text">Searching for candidates...</p>
+          <p class="state-hint">Scanning public profiles across multiple sources</p>
+        </div>
+        <div id="empty-state" class="state-box hidden">
+          <div class="state-icon">📋</div>
+          <p class="state-text">No relevant candidates found</p>
+          <p class="state-hint">Try broadening your search, adjusting required skills, or removing location restrictions.</p>
+        </div>
+        <div id="error-state" class="state-box hidden">
+          <div class="state-icon">⚠️</div>
+          <p class="state-text">Unable to fetch candidates</p>
+          <p class="state-hint" id="error-detail"></p>
+          <button id="retry-btn" class="btn-primary" type="button">Retry</button>
+        </div>
+      </section>
+    </main>
   </div>
 
   <div id="settings-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
     <div class="modal-card">
       <h2>Settings</h2>
       <label for="settings-url">API Base URL</label>
       <input id="settings-url" type="url" spellcheck="false" />
-      <label for="settings-key">API Key (X-API-Key, optional)</label>
+      <label for="settings-key">API Key <span class="label-hint">(X-API-Key, optional)</span></label>
       <input id="settings-key" type="password" spellcheck="false" placeholder="leave empty if not required" />
       <div class="modal-actions">
-        <button id="settings-save" class="btn primary">Save</button>
-        <button id="settings-cancel" class="btn">Cancel</button>
+        <button id="settings-cancel" class="btn-ghost" type="button">Cancel</button>
+        <button id="settings-save" class="btn-primary" type="button">Save</button>
       </div>
+    </div>
+  </div>
+
+  <div id="candidate-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card modal-lg">
+      <button id="candidate-close" class="modal-close" type="button" aria-label="Close">&times;</button>
+      <div id="candidate-detail"></div>
     </div>
   </div>
 
