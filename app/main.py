@@ -41,6 +41,14 @@ def require_api_key(x_api_key: str = Header(default=None)):
     return x_api_key
 
 
+def _safe_json(obj):
+    try:
+        return json.dumps(obj)
+    except (TypeError, ValueError) as exc:
+        sanitized = {"type": obj.get("type", "error"), "detail": f"serialization error: {exc}"}
+        return json.dumps(sanitized)
+
+
 def _run_job(agent: ScrapingAgent, job_description: str, sources, max_candidates: int, out: "queue.Queue"):
     def on_status(message: str) -> None:
         out.put({"type": "status", "message": message})
@@ -55,22 +63,37 @@ def _run_job(agent: ScrapingAgent, job_description: str, sources, max_candidates
         out.put({"type": "result", "data": result})
     except UpstreamError as exc:
         out.put({"type": "error", "detail": str(exc), "status_code": 503})
-    except Exception as exc:  # noqa: BLE001 - stream an error rather than silently hanging
+    except Exception as exc:
         out.put({"type": "error", "detail": f"internal error: {exc}", "status_code": 500})
+    finally:
+        out.put(None)
 
 
 async def _ndjson(out: "queue.Queue", thread: threading.Thread):
     last_beat = time.monotonic()
-    while thread.is_alive() or not out.empty():
+    while True:
         try:
             item = out.get_nowait()
-            yield json.dumps(item) + "\n"
+            if item is None:
+                return
+            yield _safe_json(item) + "\n"
             if item.get("type") in ("result", "error"):
                 return
             last_beat = time.monotonic()
         except queue.Empty:
+            if not thread.is_alive():
+                try:
+                    item = out.get_nowait()
+                    if item is None:
+                        return
+                    yield _safe_json(item) + "\n"
+                    if item.get("type") in ("result", "error"):
+                        return
+                except queue.Empty:
+                    pass
+                return
             if time.monotonic() - last_beat >= 10:
-                yield json.dumps({"type": "status", "message": "Still working…"}) + "\n"
+                yield _safe_json({"type": "status", "message": "Still working…"}) + "\n"
                 last_beat = time.monotonic()
             await asyncio.sleep(0.1)
 
