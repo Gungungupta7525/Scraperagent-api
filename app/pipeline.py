@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import time
+from urllib.parse import urlparse
 
 from .heuristics import extract_heuristic_candidates, rank_candidates
 from .queries import build_default_queries
@@ -27,7 +28,15 @@ class Pipeline:
 
         results = self._run_searches(queries, deadline, emit)
 
+        pre_dedup = sum(len(r) for r in results.values())
+        results = self._dedup_results(results)
+        post_dedup = sum(len(r) for r in results.values())
+        if pre_dedup != post_dedup:
+            emit(f"Deduplicated {pre_dedup} results → {post_dedup}")
+
         candidates = extract_heuristic_candidates(job_description, results)
+
+        emit(f"Extracted {len(candidates)} relevant candidates")
 
         if len(candidates) < 10 and self.llm_adapters:
             candidates = self._llm_fallback(job_description, results, deadline, emit, candidates)
@@ -47,7 +56,7 @@ class Pipeline:
         if not todo:
             return out
 
-        emit(f"Searching {len(todo)} sources…")
+        emit(f"Searching {len(todo)} sources\u2026")
 
         search_deadline = min(deadline, time.monotonic() + _SEARCH_PHASE_TIMEOUT)
         max_workers = min(15, len(todo))
@@ -71,16 +80,37 @@ class Pipeline:
         done_count = len(out)
         total_count = len(todo)
         total_results = sum(len(r) for r in out.values())
-        emit(f"Searched {done_count}/{total_count} sources — {total_results} results")
+        emit(f"Searched {done_count}/{total_count} sources \u2014 {total_results} results")
 
         return out
+
+    def _dedup_results(self, results_by_source: dict) -> dict:
+        seen_urls: set[str] = set()
+        normalized: dict[str, str] = {}
+        deduped = {}
+        for source, results in results_by_source.items():
+            clean = []
+            for row in results or []:
+                url = (row.get("url") or "").strip()
+                if not url:
+                    continue
+                canon = normalized.get(url)
+                if canon is None:
+                    canon = _canonical_url(url)
+                    normalized[url] = canon
+                if canon in seen_urls:
+                    continue
+                seen_urls.add(canon)
+                clean.append(row)
+            deduped[source] = clean
+        return deduped
 
     def _llm_fallback(self, job_description, results, deadline, emit, existing):
         for adapter in self.llm_adapters:
             if self._remaining(deadline) <= 5:
                 break
             try:
-                emit(f"Enhancing with {adapter.name}…")
+                emit(f"Enhancing with {adapter.name}\u2026")
                 evidence = _format_evidence(results, {})
                 system = (
                     "You are a recruiting agent. Extract candidate profiles from the search results below "
@@ -116,6 +146,16 @@ class Pipeline:
 
     def _remaining(self, deadline: float) -> float:
         return deadline - time.monotonic()
+
+
+def _canonical_url(url: str) -> str:
+    try:
+        p = urlparse(url)
+        host = (p.hostname or "").lower().removeprefix("www.")
+        path = p.path.rstrip("/")
+        return f"{host}{path}"
+    except Exception:
+        return url.lower().rstrip("/")
 
 
 def _format_evidence(results_by_source: dict, scraped: dict) -> str:
