@@ -283,11 +283,14 @@
       let result = null;
 
       const handleLine = (line) => {
+        console.log("[FE] line:", line.substring(0, 120));
         const msg = JSON.parse(line);
+        console.log("[FE] type:", msg.type);
         if (msg.type === "status") {
           typing.setText(msg.message);
         } else if (msg.type === "result") {
           result = msg.data;
+          console.log("[FE] result set, candidates:", result?.candidates?.length);
         } else if (msg.type === "error") {
           throw Object.assign(new Error(msg.detail || "API error"), { apiStatus: msg.status_code });
         }
@@ -295,8 +298,10 @@
 
       for (;;) {
         const { done, value } = await reader.read();
+        console.log("[FE] read done:", done, "bytes:", value?.byteLength);
         if (done) break;
         buf += decoder.decode(value, { stream: true });
+        console.log("[FE] buf len:", buf.length);
         let nl;
         while ((nl = buf.indexOf("\n")) !== -1) {
           const line = buf.slice(0, nl).trim();
@@ -308,6 +313,7 @@
         if (result) break;
       }
 
+      console.log("[FE] loop ended, result:", !!result);
       typing.remove();
 
       if (!result && buf.trim()) {
@@ -319,12 +325,15 @@
       }
 
       if (result) {
+        console.log("[FE] calling renderCandidates");
         renderCandidates(result);
+        console.log("[FE] renderCandidates done");
         setStatus("ok", "API online");
       } else {
         showError("The API finished without returning candidates.");
       }
     } catch (err) {
+      console.error("[FE] error:", err);
       typing.remove();
       let detail = "Could not reach the API. Check that it's deployed and your base URL is correct.";
       if (err.name === "TimeoutError") {
