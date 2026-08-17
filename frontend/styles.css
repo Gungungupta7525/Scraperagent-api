@@ -193,6 +193,7 @@ html, body {
 
 .cand-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .cand-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cand-name-role { min-width: 0; }
 .cand-rank {
   width: 24px; height: 24px;
   border-radius: 50%;
@@ -203,17 +204,31 @@ html, body {
   display: grid; place-items: center;
   flex-shrink: 0;
 }
-.cand-name { font-weight: 600; font-size: 15px; }
-.cand-role { font-size: 13px; color: var(--accent); margin-top: 1px; }
+.cand-name { font-weight: 600; font-size: 15px; line-height: 1.3; }
+.cand-role { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.source-badge svg { flex-shrink: 0; }
 
 .cand-meta {
-  font-size: 12.5px; color: var(--text-dim); margin-top: 6px;
-  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  font-size: 12.5px; color: var(--text-dim); margin-top: 8px;
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
 }
 .cand-meta a { color: var(--accent); text-decoration: none; font-size: 12px; }
 .cand-meta a:hover { text-decoration: underline; }
-
-.cand-summary { font-size: 13px; color: var(--text-dim); margin-top: 10px; line-height: 1.5; }
+.cand-location { display: inline-flex; align-items: center; gap: 3px; }
 
 .skills { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
 .skill {
@@ -229,15 +244,6 @@ html, body {
 .score-bar { flex: 1; height: 5px; border-radius: 999px; background: var(--bg-input); overflow: hidden; }
 .score-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #f85149, #d29922, #3fb950); }
 .score-label { font-size: 11.5px; color: var(--text-dim); min-width: 60px; text-align: right; }
-
-.badge {
-  font-size: 10.5px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  color: var(--text-dim);
-  text-transform: capitalize;
-}
 
 .sources { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
 .source-chip {
@@ -358,4 +364,9 @@ html, body {
 @media (max-width: 640px) {
   .bubble { max-width: 100%; }
   .tagline { display: none; }
+  .candidate { padding: 12px; }
+  .cand-head { flex-direction: column; gap: 8px; }
+  .source-badge { align-self: flex-start; }
+  .cand-meta { flex-direction: column; gap: 4px; }
+  .skills { gap: 4px; }
 }

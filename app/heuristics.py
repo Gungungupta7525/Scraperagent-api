@@ -159,7 +159,42 @@ def score_candidate(job_description: str, title: str, snippet: str) -> float:
     return round(min(0.95, max(0.05, raw)), 2)
 
 
+_BOILERPLATE = re.compile(
+    r"(?:Skip to content|Log in|Create account|Sign up|Sign in|Log\s+in\s+or\s+sign\s+up|"
+    r"Log\s+in\s+Create\s+account|DEV Community|Hashnode|"
+    r"profile picture|profile photo|avatar|"
+    r"Website|Menu|Search|Home|About|Contact|Privacy|Terms|"
+    r"©\s*\d{4}|All rights reserved|"
+    r"Loading\.\.\.|Please wait|"
+    r"View profile|View website|"
+    r"Posted|Shared|Reposted|"
+    r"Show more|Show less|Read more|"
+    r"Back to top|Scroll to|"
+    r"\d+\s+(?:followers|connections|endorsements|recommendations))",
+    re.IGNORECASE,
+)
+
+_HEADING_RE = re.compile(r"^#+\s+", re.MULTILINE)
+
+
+def _clean_snippet(snippet: str) -> str:
+    if not snippet:
+        return ""
+    cleaned = _BOILERPLATE.sub("", snippet)
+    cleaned = _HEADING_RE.sub("", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    cleaned = re.sub(r"^[|\u2013\u2014:;,.\s]+", "", cleaned)
+    cleaned = re.sub(r"[|\u2013\u2014:;,.\s]+$", "", cleaned)
+    return cleaned[:200]
+
+
+def _extract_candidate_skills(snippet: str, jd_skills: list[str]) -> list[str]:
+    snippet_lower = snippet.lower()
+    return [s for s in jd_skills if _skill_in_text(s, snippet_lower)][:10]
+
+
 def extract_heuristic_candidates(job_description: str, results_by_source: dict) -> list:
+    jd_skills = _extract_skills(job_description)
     candidates = []
     seen = set()
     for source, results in results_by_source.items():
@@ -172,22 +207,26 @@ def extract_heuristic_candidates(job_description: str, results_by_source: dict) 
                 continue
             seen.add(url)
             title = (row.get("title") or "").strip()
-            snippet = (row.get("snippet") or "").strip()
-            name = name_from_url(url) or re.sub(r"\s*[|]\s*.*$", "", title).strip() or None
+            raw_snippet = (row.get("snippet") or "").strip()
+            snippet = _clean_snippet(raw_snippet)
+            name = name_from_url(url) or re.sub(r"\s*[|–—]\s*.*$", "", title).strip() or None
+            headline = re.sub(r"\s*[|–—]\s*(?:LinkedIn|GitHub|DEV|Hashnode|Wellfound|Indeed|Kaggle).*$", "", title, flags=re.IGNORECASE).strip() or None
             score = score_candidate(job_description, title, snippet)
 
             if score < 0.15:
                 continue
 
+            skills = _extract_candidate_skills(snippet, jd_skills)
+
             candidates.append(
                 {
                     "name": name,
-                    "role": None,
-                    "headline": title or None,
+                    "role": headline,
+                    "headline": headline,
                     "source": src,
                     "url": url,
                     "location": None,
-                    "skills": [],
+                    "skills": skills,
                     "experience": None,
                     "relevance_score": score,
                     "summary": snippet[:200] or None,
