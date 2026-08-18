@@ -37,10 +37,12 @@
             ></textarea>
           </div>
           <div id="stream-status" class="stream-status hidden"></div>
-          <button id="send-btn" type="submit" class="btn-primary btn-full">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M15 14L2 7.5L15 1V5.5L6 8.5L15 11.5V14Z" fill="currentColor"/></svg>
-            Search Candidates
-          </button>
+          <div class="composer-actions">
+            <button id="send-btn" type="submit" class="btn-primary btn-search">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="2"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Search Candidates
+            </button>
+          </div>
         </form>
         <div id="suggestions" class="suggestions"></div>
       </section>
@@ -49,9 +51,33 @@
         <div class="results-header">
           <div class="results-top">
             <h2 id="results-title">Candidates Found</h2>
-            <button id="new-search-btn" class="btn-text" type="button">New Search</button>
+            <button id="new-search-btn" class="btn-pill-cta" type="button">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 3 3.5.5-2.5 2.4.6 3.5L8 8.9 4.9 10.4l.6-3.5L3 4.5 6.5 4 8 1z" fill="currentColor"/></svg>
+              New Search
+            </button>
           </div>
           <div id="results-stats" class="results-stats"></div>
+        </div>
+
+        <!-- Desktop inline filter bar -->
+        <div id="desktop-filters" class="desktop-filters hidden">
+          <div class="df-group">
+            <button class="dfpill active" data-filter="all">All</button>
+            <button class="dfpill" data-filter="strong">Strong</button>
+            <button class="dfpill" data-filter="good">Good</button>
+            <button class="dfpill" data-filter="review">Review</button>
+          </div>
+          <div class="df-separator"></div>
+          <div class="df-group df-slider-group">
+            <label class="df-slider-label">Min Match</label>
+            <input type="range" id="desktop-threshold" min="0" max="95" value="0" step="5" />
+            <span id="desktop-threshold-val" class="df-slider-val">0%</span>
+          </div>
+          <div class="df-separator"></div>
+          <div class="df-group">
+            <button class="dfpill active" data-sort="score">Best Match</button>
+            <button class="dfpill" data-sort="name">Name</button>
+          </div>
         </div>
 
         <div id="skeleton-list" class="candidates-list hidden">

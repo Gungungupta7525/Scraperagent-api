@@ -182,6 +182,12 @@ html, body {
   min-height: 22px;
 }
 
+.composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
 /* --- Buttons --- */
 .btn-primary {
   display: inline-flex;
@@ -204,6 +210,11 @@ html, body {
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-full { width: 100%; }
 
+.btn-search {
+  width: 100%;
+  height: 48px;
+}
+
 .btn-ghost {
   background: transparent;
   border: 1px solid var(--border);
@@ -216,13 +227,34 @@ html, body {
 }
 .btn-ghost:hover { border-color: var(--border-strong); background: var(--bg-elevated); }
 
-.btn-text {
-  background: none;
+/* --- Pill CTA (New Search) --- */
+.btn-pill-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
   border: none;
-  color: var(--accent);
+  background: linear-gradient(135deg, #58a6ff 0%, #a371f7 100%);
+  color: #fff;
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  padding: 4px 0;
+  box-shadow: 0 2px 12px rgba(88,166,255,0.25), 0 0 0 1px rgba(88,166,255,0.1);
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+.btn-pill-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(88,166,255,0.35), 0 0 0 1px rgba(88,166,255,0.2);
+}
+.btn-pill-cta:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 6px rgba(88,166,255,0.2);
+}
+.btn-pill-cta svg {
+  flex-shrink: 0;
 }
 
 /* --- Suggestions --- */
@@ -299,6 +331,9 @@ html, body {
 .stat-review { color: var(--red); }
 .stat-review::before { background: var(--red); }
 
+/* --- Desktop Inline Filters (hidden on mobile) --- */
+.desktop-filters { display: none; }
+
 /* --- Candidates List --- */
 .candidates-list {
   display: flex;
@@ -312,7 +347,7 @@ html, body {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 14px;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .cand-header {
@@ -665,10 +700,17 @@ html, body {
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 16px;
+  padding-right: 40px;
 }
 .detail-name { font-size: 18px; font-weight: 700; }
 .detail-role { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
-.detail-score { font-size: 26px; font-weight: 700; flex-shrink: 0; }
+.detail-score {
+  font-size: 26px;
+  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 60px;
+  text-align: right;
+}
 
 .detail-section { margin-bottom: 18px; }
 .detail-section h3 {
@@ -699,6 +741,14 @@ html, body {
 }
 
 .detail-skills { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.detail-actions .btn-primary { flex: 1; }
+.detail-actions .btn-ghost { flex: 1; }
 
 /* --- Scrollbar --- */
 .main-content::-webkit-scrollbar { width: 4px; }
@@ -732,26 +782,94 @@ html, body {
    DESKTOP (>1024px)
    ========================================================== */
 @media (min-width: 1024px) {
-  .app { max-width: 960px; }
+  .app { max-width: 1200px; }
 
-  .topbar { height: auto; padding: 12px 24px; }
+  .topbar { height: auto; padding: 12px 28px; }
   .brand-name { font-size: 16px; }
 
-  .search-section { padding: 48px 24px 32px; }
+  .search-section { padding: 48px 28px 32px; }
   .search-title { font-size: 28px; }
   .search-subtitle { font-size: 15px; }
   .composer-field textarea { min-height: 140px; border-radius: var(--radius-lg); padding: 14px 16px; }
-  .btn-primary { height: auto; padding: 12px 24px; }
-  .btn-full { width: auto; }
+  .btn-search { width: auto; height: auto; padding: 12px 28px; font-size: 15px; }
 
-  .results-section { padding: 0 24px 24px; }
+  .results-section { padding: 0 28px 28px; }
   .results-header { padding: 16px 0 12px; }
   .results-top h2 { font-size: 18px; }
   .results-stats { gap: 16px; font-size: 13px; }
 
+  /* --- Desktop inline filters --- */
+  .desktop-filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    flex-wrap: wrap;
+  }
+  .df-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .df-separator {
+    width: 1px;
+    height: 24px;
+    background: var(--border-strong);
+    flex-shrink: 0;
+  }
+  .dfpill {
+    font-size: 12px;
+    padding: 5px 13px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .dfpill:hover { border-color: var(--border-strong); color: var(--text); }
+  .dfpill.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 8px rgba(88,166,255,0.15);
+  }
+  .df-slider-group {
+    gap: 6px;
+  }
+  .df-slider-label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+  }
+  .df-slider-group input[type="range"] {
+    width: 80px;
+    accent-color: var(--accent);
+  }
+  .df-slider-val {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 28px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* --- 3-column grid --- */
+  .candidates-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
   .candidate { padding: 18px 20px; }
   .cand-header { gap: 12px; }
-  .cand-name { font-size: 16px; }
+  .cand-name { font-size: 15px; }
   .score-number { font-size: 22px; }
   .cand-summary { -webkit-line-clamp: 2; font-size: 13px; }
   .skill { font-size: 11.5px; padding: 2px 9px; }
@@ -778,5 +896,11 @@ html, body {
     width: min(480px, 90vw);
     margin: 0 auto;
     max-height: 80vh;
+  }
+
+  .skeleton-list desktop-filters {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
   }
 }

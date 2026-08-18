@@ -29,6 +29,9 @@
   const bottomFilterBtn = $("#bottom-filter-btn");
   const bottomSortBtn = $("#bottom-sort-btn");
   const streamStatus = $("#stream-status");
+  const desktopFilters = $("#desktop-filters");
+  const desktopThreshold = $("#desktop-threshold");
+  const desktopThresholdVal = $("#desktop-threshold-val");
 
   const LS_URL = "scraperagent.api_base_url";
   const LS_KEY = "scraperagent.api_key";
@@ -128,6 +131,7 @@
     lastJobDescription = input.value.trim() || lastJobDescription;
     applyFilterAndSort();
     bottomBar.classList.remove("hidden");
+    desktopFilters.classList.remove("hidden");
   }
 
   function applyFilterAndSort() {
@@ -314,12 +318,12 @@
     }
 
     /* action buttons at bottom of detail */
-    html += `<div style="display:flex;gap:8px;margin-top:16px">`;
+    html += `<div class="detail-actions">`;
     if (c.url) {
-      html += `<a href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer" class="btn-primary" style="flex:1;text-decoration:none;text-align:center">Open Profile</a>`;
+      html += `<a href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer" class="btn-primary" style="text-decoration:none;text-align:center">Go to Profile</a>`;
     }
     const isShort = shortlisted.has(c.url);
-    html += `<button class="btn-ghost detail-shortlist-btn${isShort ? " shortlisted" : ""}" data-url="${escapeHtml(c.url || "")}" style="flex:1">${isShort ? "Shortlisted" : "Shortlist"}</button>`;
+    html += `<button class="btn-ghost detail-shortlist-btn${isShort ? " shortlisted" : ""}" data-url="${escapeHtml(c.url || "")}">${isShort ? "Shortlisted" : "Shortlist"}</button>`;
     html += `</div>`;
 
     candidateDetail.innerHTML = html;
@@ -530,8 +534,23 @@
     activeSort = activeSortPill ? activeSortPill.dataset.sort : "score";
 
     threshold = parseInt($("#filter-threshold").value, 10);
+    syncDesktopFilters();
     applyFilterAndSort();
     closeFilterModal();
+  }
+
+  function syncDesktopFilters() {
+    /* sync desktop match pills */
+    $$(".dfpill[data-filter]", desktopFilters).forEach((p) => {
+      p.classList.toggle("active", p.dataset.filter === activeFilter);
+    });
+    /* sync desktop sort pills */
+    $$(".dfpill[data-sort]", desktopFilters).forEach((p) => {
+      p.classList.toggle("active", p.dataset.sort === activeSort);
+    });
+    /* sync desktop threshold */
+    desktopThreshold.value = threshold;
+    desktopThresholdVal.textContent = `${threshold}%`;
   }
 
   /* ---------- settings ---------- */
@@ -576,6 +595,7 @@
       errorState.classList.add("hidden");
       candidatesList.innerHTML = "";
       bottomBar.classList.add("hidden");
+      desktopFilters.classList.add("hidden");
       streamStatus.classList.add("hidden");
       input.value = "";
       input.focus();
@@ -587,6 +607,7 @@
       resultsSection.classList.add("hidden");
       emptyState.classList.add("hidden");
       bottomBar.classList.add("hidden");
+      desktopFilters.classList.add("hidden");
       input.focus();
     });
 
@@ -631,13 +652,31 @@
       applyFilterAndSort();
     });
 
-    /* initial sort pill label */
-    const updateSortLabel = () => {
-      bottomSortBtn.childNodes[bottomSortBtn.childNodes.length - 1].textContent = activeSort === "score" ? " Sort" : " Name";
-    };
-    const origApply = applyFilterAndSort;
-    /* wrap to update label */
-    const _orig = applyFilterAndSort;
+    /* --- Desktop inline filters --- */
+    desktopFilters.addEventListener("click", (e) => {
+      const pill = e.target.closest(".dfpill");
+      if (!pill) return;
+      /* match type pills */
+      if (pill.dataset.filter) {
+        $$(".dfpill[data-filter]", desktopFilters).forEach((p) => p.classList.remove("active"));
+        pill.classList.add("active");
+        activeFilter = pill.dataset.filter;
+        applyFilterAndSort();
+      }
+      /* sort pills */
+      if (pill.dataset.sort) {
+        $$(".dfpill[data-sort]", desktopFilters).forEach((p) => p.classList.remove("active"));
+        pill.classList.add("active");
+        activeSort = pill.dataset.sort;
+        applyFilterAndSort();
+      }
+    });
+
+    desktopThreshold.addEventListener("input", (e) => {
+      threshold = parseInt(e.target.value, 10);
+      desktopThresholdVal.textContent = `${threshold}%`;
+      applyFilterAndSort();
+    });
 
     setStatus("", "checking\u2026");
     checkHealth();
