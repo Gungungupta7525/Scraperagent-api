@@ -12,24 +12,9 @@
     <header class="topbar">
       <div class="brand">
         <div class="logo">🔍</div>
-        <div>
-          <h1>ScraperAgent</h1>
-          <p class="tagline">AI-Powered Candidate Sourcing</p>
-        </div>
+        <span class="brand-name">ScraperAgent</span>
       </div>
-      <div class="topbar-actions">
-        <div class="dropdown" id="sources-dropdown">
-          <button id="sources-btn" class="sources-btn" type="button" aria-haspopup="true" aria-expanded="false">
-            Sources <span class="caret">▾</span>
-          </button>
-          <div id="sources-menu" class="dropdown-menu hidden" role="menu">
-            <a href="https://www.dice.com/dashboard/login" target="_blank" rel="noopener noreferrer">Dice</a>
-            <a href="https://login.monster.com/" target="_blank" rel="noopener noreferrer">Monster</a>
-            <a href="https://secure.indeed.com/account/login" target="_blank" rel="noopener noreferrer">Indeed</a>
-            <a href="https://www.linkedin.com/login" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-            <a href="https://wellfound.com/user/login" target="_blank" rel="noopener noreferrer">Wellfound</a>
-          </div>
-        </div>
+      <div class="topbar-right">
         <span id="api-status" class="api-status" title="API connection">—</span>
         <button id="settings-btn" class="icon-btn" title="Settings">⚙️</button>
       </div>
@@ -42,56 +27,48 @@
           <p class="search-subtitle">Paste a job description and we'll search public profiles to find the best matches</p>
         </div>
         <form id="composer" class="composer" autocomplete="off">
+          <label class="composer-label" for="input">Job Description</label>
           <div class="composer-field">
             <textarea
               id="input"
               rows="4"
-              placeholder="Paste a job description, e.g. &#10;Senior Python backend engineer with FastAPI, AWS, Docker, 5+ years experience&#10;..."
+              placeholder="e.g. Senior Python backend engineer with FastAPI, AWS, Docker, 5+ years experience..."
               aria-label="Job description"
             ></textarea>
           </div>
-          <div class="composer-actions">
-            <button id="send-btn" type="submit" class="btn-primary btn-lg">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M15 14L2 7.5L15 1V5.5L6 8.5L15 11.5V14Z" fill="currentColor"/></svg>
-              Search for Candidates
-            </button>
-          </div>
+          <div id="stream-status" class="stream-status hidden"></div>
+          <button id="send-btn" type="submit" class="btn-primary btn-full">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M15 14L2 7.5L15 1V5.5L6 8.5L15 11.5V14Z" fill="currentColor"/></svg>
+            Search Candidates
+          </button>
         </form>
         <div id="suggestions" class="suggestions"></div>
       </section>
 
       <section id="results-section" class="results-section hidden">
         <div class="results-header">
-          <div class="results-title-row">
+          <div class="results-top">
             <h2 id="results-title">Candidates Found</h2>
-            <button id="new-search-btn" class="btn-ghost" type="button">New Search</button>
+            <button id="new-search-btn" class="btn-text" type="button">New Search</button>
           </div>
           <div id="results-stats" class="results-stats"></div>
-          <div class="results-toolbar">
-            <div id="results-filters" class="results-filters">
-              <button class="filter-btn active" data-filter="all">All</button>
-              <button class="filter-btn" data-filter="strong">Strong Match</button>
-              <button class="filter-btn" data-filter="good">Good Match</button>
-              <button class="filter-btn" data-filter="review">Needs Review</button>
-            </div>
-            <div class="threshold-control">
-              <label for="threshold-slider">Min match:</label>
-              <input type="range" id="threshold-slider" min="0" max="95" value="0" step="5" />
-              <span id="threshold-value">0%</span>
-            </div>
-          </div>
         </div>
+
+        <div id="skeleton-list" class="candidates-list hidden">
+          <div class="skeleton-card"><div class="sk-row"><div class="sk-circle"></div><div class="sk-lines"><div class="sk-line w80"></div><div class="sk-line w60"></div></div></div><div class="sk-bar"></div><div class="sk-pills"><div class="sk-pill"></div><div class="sk-pill"></div><div class="sk-pill w40"></div></div></div>
+          <div class="skeleton-card"><div class="sk-row"><div class="sk-circle"></div><div class="sk-lines"><div class="sk-line w70"></div><div class="sk-line w50"></div></div></div><div class="sk-bar"></div><div class="sk-pills"><div class="sk-pill"></div><div class="sk-pill w60"></div></div></div>
+          <div class="skeleton-card"><div class="sk-row"><div class="sk-circle"></div><div class="sk-lines"><div class="sk-line w90"></div><div class="sk-line w40"></div></div></div><div class="sk-bar"></div><div class="sk-pills"><div class="sk-pill"></div><div class="sk-pill"></div><div class="sk-pill"></div></div></div>
+        </div>
+
         <div id="candidates-list" class="candidates-list"></div>
-        <div id="loading-state" class="state-box hidden">
-          <div class="spinner"></div>
-          <p class="state-text">Searching for candidates...</p>
-          <p class="state-hint">Scanning public profiles across multiple sources</p>
-        </div>
+
         <div id="empty-state" class="state-box hidden">
           <div class="state-icon">📋</div>
-          <p class="state-text">No relevant candidates found</p>
-          <p class="state-hint">Try broadening your search, adjusting required skills, or removing location restrictions.</p>
+          <p class="state-text">No candidates found</p>
+          <p class="state-hint">Try broadening experience range, removing a skill filter, or expanding location criteria.</p>
+          <button id="modify-search-btn" class="btn-primary" type="button">Modify Search</button>
         </div>
+
         <div id="error-state" class="state-box hidden">
           <div class="state-icon">⚠️</div>
           <p class="state-text">Unable to fetch candidates</p>
@@ -100,6 +77,18 @@
         </div>
       </section>
     </main>
+
+    <nav id="bottom-bar" class="bottom-bar hidden">
+      <span id="bottom-count" class="bottom-count">0 candidates</span>
+      <button id="bottom-filter-btn" class="bottom-action" type="button">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1.5 2h13l-5 6v4.5L8.5 14V8L1.5 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Filters
+      </button>
+      <button id="bottom-sort-btn" class="bottom-action" type="button">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Sort
+      </button>
+    </nav>
   </div>
 
   <div id="settings-modal" class="modal hidden">
@@ -119,9 +108,44 @@
 
   <div id="candidate-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
-    <div class="modal-card modal-lg">
+    <div class="modal-card modal-full">
       <button id="candidate-close" class="modal-close" type="button" aria-label="Close">&times;</button>
       <div id="candidate-detail"></div>
+    </div>
+  </div>
+
+  <div id="filter-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-sheet">
+      <div class="sheet-handle"></div>
+      <h2>Filters</h2>
+      <div class="filter-group">
+        <label class="filter-label">Match Type</label>
+        <div class="filter-pills" id="filter-match-pills">
+          <button class="fpill active" data-filter="all">All</button>
+          <button class="fpill" data-filter="strong">Strong</button>
+          <button class="fpill" data-filter="good">Good</button>
+          <button class="fpill" data-filter="review">Review</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Minimum Match Score</label>
+        <div class="filter-slider-row">
+          <input type="range" id="filter-threshold" min="0" max="95" value="0" step="5" />
+          <span id="filter-threshold-val" class="filter-slider-val">0%</span>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Sort By</label>
+        <div class="filter-pills" id="filter-sort-pills">
+          <button class="fpill active" data-sort="score">Best Match</button>
+          <button class="fpill" data-sort="name">Name</button>
+        </div>
+      </div>
+      <div class="sheet-actions">
+        <button id="filter-reset" class="btn-ghost" type="button">Reset</button>
+        <button id="filter-apply" class="btn-primary btn-full" type="button">Apply Filters</button>
+      </div>
     </div>
   </div>
 
